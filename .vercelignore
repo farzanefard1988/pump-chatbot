@@ -1,0 +1,12 @@
+# روی Vercel فقط چت‌بات استاتیک (index.html) و تابع سرورلس (api/) مستقر می‌شوند.
+# فایل‌های اپ Streamlit/پایتون آنجا لازم نیستند و نباید به‌عنوان entrypoint پایتون build شوند.
+app.py
+config.py
+requirements.txt
+rag/
+data/
+static/
+.streamlit/
+.env.example
+.venv/
+*.log
