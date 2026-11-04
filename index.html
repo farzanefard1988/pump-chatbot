@@ -447,9 +447,24 @@ function retrieve(query) {
   }).sort((a, b) => b.s - a.s).filter(x => x.s > 0).slice(0, 3).map(x => x.c);
 }
 async function callGemini(query, chunks) {
+  const context = (chunks.length ? chunks : KB.slice(0, 3)).map(c => `• ${c.title}: ${c.text}`).join('\n');
+  // ۱) اگر سرور (Vercel) در دسترس بود، از آن استفاده کن تا کلید سمت سرور بماند.
+  //    فقط پاسخ JSONِ تابع خودمان معتبر است؛ در غیر این صورت (میزبان استاتیک) به حالت کلید سمت کاربر برمی‌گردیم.
+  try {
+    const sr = await fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, context })
+    });
+    const ct = sr.headers.get('content-type') || '';
+    if (ct.includes('application/json')) {
+      const d = await sr.json().catch(() => null);
+      if (d && d.text) return { text: d.text };
+      if (d && d.error) return { error: d.error };
+    }
+  } catch (e) { /* سروری در دسترس نیست (GitHub Pages/محلی) → کلید سمت کاربر */ }
+  // ۲) حالت جایگزین: کلید سمت کاربر (GitHub Pages یا اجرای محلی)
   const key = getKey();
   if (!key) return { needKey: true };
-  const context = (chunks.length ? chunks : KB.slice(0, 3)).map(c => `• ${c.title}: ${c.text}`).join('\n');
   const sys = 'تو «کارشناس فروش» یک فروشگاه پمپ و الکتروپمپ صنعتی هستی و فقط فارسی پاسخ می‌دهی. فقط و فقط بر اساس «اطلاعات» زیر پاسخ بده و از خودت چیزی اضافه نکن. اگر برای توصیهٔ دقیق به جزئیاتی نیاز داری (مثل تعداد طبقات/واحد، عمق چاه، دبی موردنیاز یا نوع سیال) اول یک سؤال کوتاهِ شفاف‌کننده بپرس و پاسخ نهایی نده. پاسخ کوتاه، دقیق و کاربردی باشد.';
   const prompt = `${sys}\n\n### اطلاعات:\n${context}\n\n### سؤال کاربر:\n${query}\n\n### پاسخ:`;
   try {
