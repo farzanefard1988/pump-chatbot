@@ -4,6 +4,7 @@
   "buildCommand": null,
   "installCommand": null,
   "outputDirectory": ".",
+  "regions": ["fra1"],
   "functions": {
     "api/chat.js": { "maxDuration": 30 }
   }
