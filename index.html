@@ -455,11 +455,16 @@ async function callGemini(query, chunks) {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, context })
     });
-    const ct = sr.headers.get('content-type') || '';
-    if (ct.includes('application/json')) {
-      const d = await sr.json().catch(() => null);
-      if (d && d.text) return { text: d.text };
-      if (d && d.error) return { error: d.error };
+    // ۴۰۴/۴۰۵ یعنی اصلاً سروری اینجا نیست (میزبان استاتیک) → حالت کلید سمت‌کاربر
+    if (sr.status !== 404 && sr.status !== 405) {
+      const ct = sr.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        const d = await sr.json().catch(() => null);
+        if (d && d.text) return { text: d.text };
+        if (d && d.error) return { error: d.error };
+      }
+      // سرور هست ولی لحظه‌ای پاسخ تمیز نداد (تایم‌اوت/۵xx) → خطای موقت، نه درخواست کلید
+      return { error: 'سرور لحظه‌ای پاسخ نداد. چند لحظه بعد دوباره امتحان کنید.' };
     }
   } catch (e) { /* سروری در دسترس نیست (GitHub Pages/محلی) → کلید سمت کاربر */ }
   // ۲) حالت جایگزین: کلید سمت کاربر (GitHub Pages یا اجرای محلی)
