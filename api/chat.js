@@ -47,6 +47,37 @@ export default async function handler(req, res) {
     let body = req.body;
     if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = {}; } }
     body = body || {};
+
+    // حالت تشخیصی (کلید را افشا نمی‌کند): لیست مدل‌ها و نسخهٔ درست API را گزارش می‌دهد
+    if (body.debug) {
+      const out = {};
+      for (const ver of ['v1beta', 'v1']) {
+        try {
+          const lr = await fetch(`https://generativelanguage.googleapis.com/${ver}/models?key=${encodeURIComponent(key)}`);
+          const ld = await lr.json().catch(() => ({}));
+          out[ver + '_list_status'] = lr.status;
+          out[ver + '_models'] = (ld.models || [])
+            .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
+            .map((m) => (m.name || '').replace(/^models\//, ''));
+          if (ld.error) out[ver + '_err'] = (ld.error.message || '').slice(0, 160);
+        } catch (e) { out[ver + '_list_status'] = 'fetch_failed'; }
+      }
+      const cand = (out['v1beta_models'] && out['v1beta_models'][0]) || (out['v1_models'] && out['v1_models'][0]);
+      if (cand) {
+        for (const ver of ['v1beta', 'v1']) {
+          try {
+            const gr = await fetch(`https://generativelanguage.googleapis.com/${ver}/models/${cand}:generateContent?key=${encodeURIComponent(key)}`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ contents: [{ parts: [{ text: 'سلام' }] }] }),
+            });
+            out[ver + '_gen_status_for_' + cand] = gr.status;
+          } catch (e) { out[ver + '_gen_status'] = 'fetch_failed'; }
+        }
+      }
+      res.status(200).json(out);
+      return;
+    }
+
     const query = (body.query || '').toString().slice(0, 2000);
     const context = (body.context || '').toString().slice(0, 8000);
     if (!query) { res.status(400).json({ error: 'سؤال خالی است.' }); return; }
