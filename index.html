@@ -418,7 +418,9 @@ function withSources(catId, html) {
 }
 
 /* ═══ Gemini (RAG) برای سؤال‌های تایپ‌آزاد ═══ */
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-flash-lite-latest';
+let geminiHistory = [];                 // تاریخچهٔ گفت‌وگوی تایپ‌آزاد با Gemini
+function resetGemini() { geminiHistory = []; }
 function getKey() { try { return localStorage.getItem('gemini_key') || ''; } catch (e) { return ''; } }
 function setKey(k) { try { localStorage.setItem('gemini_key', k); } catch (e) {} }
 
@@ -446,43 +448,87 @@ function retrieve(query) {
     return { c, s };
   }).sort((a, b) => b.s - a.s).filter(x => x.s > 0).slice(0, 3).map(x => x.c);
 }
-async function callGemini(query, chunks) {
-  const context = (chunks.length ? chunks : KB.slice(0, 3)).map(c => `• ${c.title}: ${c.text}`).join('\n');
-  // ۱) اگر سرور (Vercel) در دسترس بود، از آن استفاده کن تا کلید سمت سرور بماند.
-  //    فقط پاسخ JSONِ تابع خودمان معتبر است؛ در غیر این صورت (میزبان استاتیک) به حالت کلید سمت کاربر برمی‌گردیم.
+// دستورالعمل مدل (هم‌راستا با سرور): اول سؤال، بعد پیشنهاد با تگ
+const SYSTEM_PROMPT =
+  'تو «کارشناس فروش» یک فروشگاه پمپ و الکتروپمپ صنعتی هستی و فقط فارسی پاسخ می‌دهی. ' +
+  'فقط و فقط بر اساس «اطلاعات» زیر پاسخ بده. اگر برای پیشنهادِ محصول هنوز اطلاعات کافی نداری، ' +
+  'فقط یک سؤالِ کوتاهِ شفاف‌کننده بپرس، هیچ محصولی پیشنهاد نده و هیچ تگی نگذار. هر بار فقط یک سؤال بپرس. ' +
+  'وقتی اطلاعات کافی جمع شد، یک پاسخِ نهاییِ کوتاه با توصیهٔ نوع پمپ بده و دقیقاً در خط آخر یک تگ ' +
+  '[[RECOMMEND:X]] بگذار که X یکی از این مقادیر است: home_pressure, booster, drain, well, industrial, troubleshoot.';
+
+function extractTag(s) { const m = (s || '').match(/\[\[RECOMMEND:([a-z_]+)\]\]/i); return m ? m[1] : null; }
+function stripTag(s) {
+  return (s || '')
+    .replace(/\[\[RECOMMEND:[a-z_]+\]\]/ig, '')
+    .replace(/\[\[?R?E?C?O?M?M?E?N?D?:?[a-z_]*\]?\]?\s*$/i, '')
+    .replace(/\s+$/, '');
+}
+
+/* تلاش برای استریم از سرور (Vercel)؛ خروجی حرف‌به‌حرف در bubble نوشته می‌شود */
+async function streamToBubble(history, context, bubble) {
+  let sr;
   try {
-    const sr = await fetch('/api/chat', {
+    sr = await fetch('/api/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, context })
+      body: JSON.stringify({ history, context })
     });
-    // ۴۰۴/۴۰۵ یعنی اصلاً سروری اینجا نیست (میزبان استاتیک) → حالت کلید سمت‌کاربر
-    if (sr.status !== 404 && sr.status !== 405) {
-      const ct = sr.headers.get('content-type') || '';
-      if (ct.includes('application/json')) {
-        const d = await sr.json().catch(() => null);
-        if (d && d.text) return { text: d.text };
-        if (d && d.error) return { error: d.error };
-      }
-      // سرور هست ولی لحظه‌ای پاسخ تمیز نداد (تایم‌اوت/۵xx) → خطای موقت، نه درخواست کلید
-      return { error: 'سرور لحظه‌ای پاسخ نداد. چند لحظه بعد دوباره امتحان کنید.' };
-    }
-  } catch (e) { /* سروری در دسترس نیست (GitHub Pages/محلی) → کلید سمت کاربر */ }
-  // ۲) حالت جایگزین: کلید سمت کاربر (GitHub Pages یا اجرای محلی)
+  } catch (e) { return { noServer: true }; }
+  if (sr.status === 404 || sr.status === 405) return { noServer: true };
+  if (!sr.ok || !sr.body || !sr.body.getReader) {
+    const t = await sr.text().catch(() => '');
+    if (!t || t.indexOf('[[ERROR]]') >= 0) return { error: 'سرور لحظه‌ای پاسخ نداد. چند لحظه بعد دوباره امتحان کنید.' };
+    const clean = stripTag(t);
+    bubble.innerHTML = renderGemini(clean || 'پاسخی دریافت نشد.');
+    return { ok: true, full: clean, category: extractTag(t) };
+  }
+  const reader = sr.body.getReader();
+  const dec = new TextDecoder();
+  let full = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    full += dec.decode(value, { stream: true });
+    if (full.indexOf('[[ERROR]]') >= 0) return { error: 'سرور لحظه‌ای پاسخ نداد. چند لحظه بعد دوباره امتحان کنید.' };
+    bubble.innerHTML = renderGemini(stripTag(full));
+    scrollDown();
+  }
+  const clean = stripTag(full);
+  bubble.innerHTML = renderGemini(clean || 'پاسخی دریافت نشد.');
+  return { ok: true, full: clean, category: extractTag(full) };
+}
+
+/* افکت تایپ کلمه‌به‌کلمه برای حالت بدون استریم (کلید سمت‌کاربر روی میزبان استاتیک) */
+async function typeInto(bubble, text) {
+  const tokens = String(text).split(/(\s+)/);
+  let acc = '';
+  for (const tk of tokens) {
+    acc += tk;
+    bubble.innerHTML = renderGemini(acc);
+    scrollDown();
+    await new Promise(r => setTimeout(r, 16));
+  }
+}
+
+/* حالت جایگزین: کلید سمت‌کاربر (GitHub Pages/محلی) — غیراستریم، با افکت تایپ */
+async function clientKeyAnswer(history, context, bubble) {
   const key = getKey();
   if (!key) return { needKey: true };
-  const sys = 'تو «کارشناس فروش» یک فروشگاه پمپ و الکتروپمپ صنعتی هستی و فقط فارسی پاسخ می‌دهی. فقط و فقط بر اساس «اطلاعات» زیر پاسخ بده و از خودت چیزی اضافه نکن. اگر برای توصیهٔ دقیق به جزئیاتی نیاز داری (مثل تعداد طبقات/واحد، عمق چاه، دبی موردنیاز یا نوع سیال) اول یک سؤال کوتاهِ شفاف‌کننده بپرس و پاسخ نهایی نده. پاسخ کوتاه، دقیق و کاربردی باشد.';
-  const prompt = `${sys}\n\n### اطلاعات:\n${context}\n\n### سؤال کاربر:\n${query}\n\n### پاسخ:`;
+  const reqBody = {
+    systemInstruction: { parts: [{ text: SYSTEM_PROMPT + '\n\n### اطلاعات:\n' + (context || '(اطلاعاتی یافت نشد)') }] },
+    contents: history.map(m => ({ role: m.role === 'model' ? 'model' : 'user', parts: [{ text: m.text }] }))
+  };
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(reqBody)
     });
     if (res.status === 400 || res.status === 401 || res.status === 403) { setKey(''); return { authError: true }; }
-    if (!res.ok) return { error: `ارتباط با Gemini ناموفق بود (کد ${res.status}). کمی بعد دوباره امتحان کن.` };
+    if (!res.ok) return { error: `ارتباط با Gemini ناموفق بود (کد ${res.status}).` };
     const data = await res.json();
     const txt = (data && data.candidates && data.candidates[0] && data.candidates[0].content
       && data.candidates[0].content.parts || []).map(p => p.text || '').join('').trim();
-    return { text: txt || 'پاسخی دریافت نشد.' };
+    const clean = stripTag(txt);
+    await typeInto(bubble, clean || 'پاسخی دریافت نشد.');
+    return { ok: true, full: clean, category: extractTag(txt) };
   } catch (e) { return { error: 'ارتباط با Gemini برقرار نشد (اینترنت یا فیلترینگ).' }; }
 }
 function renderGemini(txt) {
@@ -627,6 +673,7 @@ function startNew() {
 
 /* ═══ STEP 0: greeting + category menu ═══ */
 async function s0() {
+  resetGemini();
   await botMsg('سلام! 👋 به پشتیبانی فروش پمپ و الکتروپمپ خوش اومدی.<br>در مورد کدام موضوع راهنمایی می‌خوای؟');
   const b = makeBlock();
   CATS.forEach(c => addOpt(b, c.icon, c.label, () => { userMsg(c.label); sCat(c.id); }));
@@ -634,6 +681,7 @@ async function s0() {
 
 /* ═══ STEP: category → popular questions ═══ */
 async function sCat(catId) {
+  resetGemini();
   const cat = CATS.find(c => c.id === catId);
   await typing();
   await botMsg(`یکی از سؤال‌های پرتکرار دستهٔ «<b>${cat.label}</b>» رو انتخاب کن، یا سؤال خودت رو بنویس:`);
@@ -695,19 +743,39 @@ function bestCategory(text) {
   return bestScore >= 1 ? bestCat : null;
 }
 
-/* سؤال متنی → پاسخ هوشمند با Gemini روی پایگاه دانش (RAG) */
+/* سؤال متنی → گفت‌وگوی چندمرحله‌ای و استریمیِ Gemini روی پایگاه دانش (RAG).
+   تا وقتی مدل سؤال می‌پرسد محصولی نشان داده نمی‌شود؛ وقتی اطلاعات کافی شد و تگ پیشنهاد آمد،
+   آن‌گاه محصول و منوی ادامه نمایش داده می‌شود. */
 function handleFree(text) { userMsg(text); return answerFree(text); }
 async function answerFree(text) {
-  await typing();
-  const chunks = retrieve(text);
-  const r = await callGemini(text, chunks);  // اول سرور (Vercel)، بعد در صورت نبودِ سرور کلید سمت‌کاربر
-  if (r.needKey) return askForKey(text);
-  if (r.authError) { await botMsg('کلید Gemini نامعتبر بود. لطفاً دوباره واردش کن.'); return keyInputBlock(text); }
-  if (r.error) { await botMsg(r.error); return keyRetryBlock(text); }
-  await botMsg(renderGemini(r.text));
-  const cat = bestCategory(text) || 'home_pressure';
-  showProducts(pickProducts(cat, []));
-  await followUp(cat);
+  geminiHistory.push({ role: 'user', text });
+
+  // حباب بات با نقطه‌های تایپینگ تا رسیدن اولین کلمه
+  const row = document.createElement('div');
+  row.className = 'bot-row';
+  row.innerHTML = `<div class="bot-avatar">${BOT_ICON}</div><div class="bubble-bot"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  chat.appendChild(row); scrollDown();
+  const bubble = row.querySelector('.bubble-bot');
+
+  const context = retrieve(text).map(c => `• ${c.title}: ${c.text}`).join('\n')
+    || KB.slice(0, 3).map(c => `• ${c.title}: ${c.text}`).join('\n');
+
+  let r = await streamToBubble(geminiHistory, context, bubble);
+  if (r.noServer) r = await clientKeyAnswer(geminiHistory, context, bubble);
+
+  if (r.needKey) { row.remove(); geminiHistory.pop(); return askForKey(text); }
+  if (r.authError) { bubble.innerHTML = renderGemini('کلید Gemini نامعتبر بود. لطفاً دوباره واردش کن.'); geminiHistory.pop(); return keyInputBlock(text); }
+  if (r.error) { bubble.innerHTML = renderGemini(r.error); geminiHistory.pop(); return keyRetryBlock(text); }
+
+  geminiHistory.push({ role: 'model', text: r.full });
+
+  if (r.category && CATS.find(c => c.id === r.category)) {
+    // اطلاعات کافی جمع شد → حالا محصول پیشنهاد بده و گفت‌وگو را جمع‌بندی کن
+    showProducts(pickProducts(r.category, []));
+    resetGemini();
+    await followUp(r.category);
+  }
+  // در غیر این صورت سؤال شفاف‌کننده بود → محصول/منو نشان نمی‌دهیم؛ کاربر در باکس پایین پاسخ می‌دهد
 }
 
 /* گرفتن کلید Gemini از کاربر (فقط در مرورگر ذخیره می‌شود) */
