@@ -151,10 +151,29 @@
   .chev svg { width: 16px; height: 16px; display: block; }
 
   /* Sticky composer pinned to the bottom of the frame (outside the chat flow) */
+  /* نوار چیپس سریع (اسکرول افقی) بالای باکس ورودی */
+  .chips-bar {
+    flex-shrink: 0; display: flex; gap: 8px; overflow-x: auto;
+    padding: 8px 16px; background: var(--white);
+    border-top: 1px solid var(--border);
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .chips-bar:empty { display: none; }
+  .chips-bar::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto; white-space: nowrap; cursor: pointer;
+    background: var(--chip-bg); color: var(--primary-dark);
+    border: 1px solid var(--chip-border); border-radius: 999px;
+    padding: 6px 12px; font-size: 12px; line-height: 1.6;
+    font-family: 'Vazirmatn', Tahoma, sans-serif; transition: background 0.15s;
+    max-width: 230px; overflow: hidden; text-overflow: ellipsis;
+  }
+  .chip:hover { background: #e0e7ff; }
+  .chip.chip-home { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
   .composer {
     flex-shrink: 0; display: flex; align-items: center;
     padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-    background: var(--white); border-top: 1px solid var(--border);
+    background: var(--white); border-top: none;
   }
   .ask-field { position: relative; flex: 1; min-width: 0; }
   .ask-inp {
@@ -260,6 +279,7 @@
     </button>
   </div>
   <div class="chat-area" id="chatArea"></div>
+  <div class="chips-bar" id="chipsBar"></div>
   <div class="composer">
     <div class="ask-field">
       <input class="ask-inp" id="askInp" placeholder="سؤال خودتان را بنویسید…" autocomplete="off">
@@ -429,6 +449,33 @@ function withSources(catId, html) {
 const GEMINI_MODEL = 'gemini-flash-lite-latest';
 let geminiHistory = [];                 // تاریخچهٔ گفت‌وگوی تایپ‌آزاد با Gemini
 function resetGemini() { geminiHistory = []; }
+
+/* ═══ چیپس سریع بالای باکس ورودی ═══ */
+let chipCat = null;                     // دستهٔ فعلی برای چیپس‌های مرتبط
+function renderChips() {
+  const bar = document.getElementById('chipsBar');
+  if (!bar) return;
+  bar.innerHTML = '';
+  const add = (label, cls, fn) => {
+    const el = document.createElement('button');
+    el.className = 'chip' + (cls ? ' ' + cls : '');
+    el.textContent = label;
+    el.onclick = () => { if (busy) return; fn(); };
+    bar.appendChild(el);
+  };
+  add('🏠 منوی اصلی', 'chip-home', () => showMainMenu());   // همیشه هست
+  const cat = chipCat && CATS.find(c => c.id === chipCat);
+  if (cat) {
+    cat.qs.forEach((item, i) => add(item.q, '', () => { resetGemini(); userMsg(item.q); sAnswer(chipCat, i); }));
+  } else {
+    CATS.forEach(c => add(c.icon + ' ' + c.label, '', () => { userMsg(c.label); sCat(c.id); }));
+  }
+}
+async function showMainMenu() {
+  chipCat = null; resetGemini(); renderChips();
+  const b = makeBlock();
+  CATS.forEach(c => addOpt(b, c.icon, c.label, () => { userMsg(c.label); sCat(c.id); }));
+}
 function getKey() { try { return localStorage.getItem('gemini_key') || ''; } catch (e) { return ''; } }
 function setKey(k) { try { localStorage.setItem('gemini_key', k); } catch (e) {} }
 
@@ -688,6 +735,7 @@ function startNew() {
 /* ═══ STEP 0: greeting + category menu ═══ */
 async function s0() {
   resetGemini();
+  chipCat = null; renderChips();
   await botMsg('سلام! 👋 به پشتیبانی فروش پمپ و الکتروپمپ خوش اومدی.<br>در مورد کدام موضوع راهنمایی می‌خوای؟');
   const b = makeBlock();
   CATS.forEach(c => addOpt(b, c.icon, c.label, () => { userMsg(c.label); sCat(c.id); }));
@@ -696,6 +744,7 @@ async function s0() {
 /* ═══ STEP: category → popular questions ═══ */
 async function sCat(catId) {
   resetGemini();
+  chipCat = catId; renderChips();
   const cat = CATS.find(c => c.id === catId);
   await typing();
   await botMsg(`یکی از سؤال‌های پرتکرار دستهٔ «<b>${cat.label}</b>» رو انتخاب کن، یا سؤال خودت رو بنویس:`);
@@ -805,6 +854,7 @@ async function answerFree(text) {
     if (cached.category && CATS.find(c => c.id === cached.category)) {
       showProducts(pickProducts(cached.category, []));
       resetGemini();
+      chipCat = cached.category; renderChips();
       await followUp(cached.category);
     }
     return;
@@ -823,6 +873,7 @@ async function answerFree(text) {
   if (r.category && CATS.find(c => c.id === r.category)) {
     showProducts(pickProducts(r.category, []));
     resetGemini();
+    chipCat = r.category; renderChips();
     await followUp(r.category);
   }
   // در غیر این صورت سؤال شفاف‌کننده بود → محصول/منو نشان نمی‌دهیم؛ کاربر پاسخ می‌دهد
