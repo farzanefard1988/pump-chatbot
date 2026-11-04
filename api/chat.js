@@ -8,6 +8,31 @@ const SYSTEM_PROMPT =
   'اگر برای توصیهٔ دقیق به جزئیاتی نیاز داری (مثل تعداد طبقات/واحد، عمق چاه، دبی موردنیاز یا نوع سیال) ' +
   'اول یک سؤال کوتاهِ شفاف‌کننده بپرس و پاسخ نهایی نده. پاسخ کوتاه، دقیق و کاربردی باشد.';
 
+// از ListModels مدل‌های در دسترس همان کلید را می‌گیرد و یک مدل مناسب (ترجیحاً flash) برمی‌گرداند
+let _cachedModel = null;
+async function pickModel(key) {
+  if (_cachedModel) return _cachedModel;
+  try {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
+    if (!r.ok) return null;
+    const data = await r.json();
+    const models = (data.models || [])
+      .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
+      .map((m) => (m.name || '').replace(/^models\//, ''))
+      .filter(Boolean);
+    const pref = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    for (const p of pref) {
+      const hit = models.find((m) => m === p);
+      if (hit) { _cachedModel = hit; return hit; }
+    }
+    const anyFlash = models.find((m) => m.includes('flash') && !m.includes('vision'));
+    _cachedModel = anyFlash || models[0] || null;
+    return _cachedModel;
+  } catch (e) {
+    return null;
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'فقط POST' });
@@ -26,8 +51,14 @@ export default async function handler(req, res) {
     const context = (body.context || '').toString().slice(0, 8000);
     if (!query) { res.status(400).json({ error: 'سؤال خالی است.' }); return; }
 
-    const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
     const prompt = `${SYSTEM_PROMPT}\n\n### اطلاعات:\n${context || '(اطلاعاتی یافت نشد)'}\n\n### سؤال کاربر:\n${query}\n\n### پاسخ:`;
+
+    // انتخاب مدل: اگر GEMINI_MODEL ست شده از آن، وگرنه از لیست مدل‌های همان کلید یک مدل flash بردار
+    const model = process.env.GEMINI_MODEL || (await pickModel(key));
+    if (!model) {
+      res.status(502).json({ error: 'هیچ مدل Gemini در دسترس این کلید پیدا نشد.' });
+      return;
+    }
 
     const r = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
@@ -38,7 +69,7 @@ export default async function handler(req, res) {
       }
     );
     if (!r.ok) {
-      res.status(502).json({ error: `خطا از Gemini (کد ${r.status}).` });
+      res.status(502).json({ error: `خطا از Gemini (کد ${r.status}) با مدل ${model}.` });
       return;
     }
     const data = await r.json();
