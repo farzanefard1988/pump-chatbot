@@ -162,14 +162,13 @@
   .chips-bar::-webkit-scrollbar { display: none; }
   .chip {
     flex: 0 0 auto; white-space: nowrap; cursor: pointer;
-    background: var(--chip-bg); color: var(--primary-dark);
-    border: 1px solid var(--chip-border); border-radius: 999px;
-    padding: 6px 12px; font-size: 12px; line-height: 1.6;
+    background: #f1f5f9; color: #334155;
+    border: 1px solid #e2e8f0; border-radius: 999px;
+    padding: 6px 13px; font-size: 12.5px; line-height: 1.6;
     font-family: 'Vazirmatn', Tahoma, sans-serif; transition: background 0.15s;
-    max-width: 230px; overflow: hidden; text-overflow: ellipsis;
   }
-  .chip:hover { background: #e0e7ff; }
-  .chip.chip-home { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 600; }
+  .chip:hover { background: #e2e8f0; }
+  .chip.chip-home { font-weight: 600; }
   .composer {
     flex-shrink: 0; display: flex; align-items: center;
     padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
@@ -451,6 +450,15 @@ let geminiHistory = [];                 // تاریخچهٔ گفت‌وگوی ت
 function resetGemini() { geminiHistory = []; }
 
 /* ═══ چیپس سریع بالای باکس ورودی ═══ */
+/* نام‌های کوتاه برای چیپس (تا متن کوتاه باشد) */
+const CAT_SHORT = {
+  home_pressure: 'فشار آب خانگی',
+  booster: 'بوستر',
+  drain: 'کفکش/لجن‌کش',
+  well: 'چاه عمیق',
+  industrial: 'صنعتی',
+  troubleshoot: 'عیب‌یابی',
+};
 let chipCat = null;                     // دستهٔ فعلی برای چیپس‌های مرتبط
 function renderChips() {
   const bar = document.getElementById('chipsBar');
@@ -464,11 +472,11 @@ function renderChips() {
     bar.appendChild(el);
   };
   add('🏠 منوی اصلی', 'chip-home', () => showMainMenu());   // همیشه هست
-  const cat = chipCat && CATS.find(c => c.id === chipCat);
-  if (cat) {
-    cat.qs.forEach((item, i) => add(item.q, '', () => { resetGemini(); userMsg(item.q); sAnswer(chipCat, i); }));
-  } else {
-    CATS.forEach(c => add(c.icon + ' ' + c.label, '', () => { userMsg(c.label); sCat(c.id); }));
+  // تکرار نکردنِ منو: در صفحهٔ اول دسته‌ها داخل منو هستند؛ فقط وقتی داخل یک دسته‌ایم،
+  // میان‌بُرِ کوتاهِ «دسته‌های دیگر» را نشان بده (نه سؤال‌های همان دسته که در منو هست).
+  if (chipCat) {
+    CATS.filter(c => c.id !== chipCat).forEach(c =>
+      add(CAT_SHORT[c.id] || c.label, '', () => { userMsg(c.label); sCat(c.id); }));
   }
 }
 async function showMainMenu() {
