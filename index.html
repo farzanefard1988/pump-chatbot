@@ -749,39 +749,88 @@ function bestCategory(text) {
   return bestScore >= 1 ? bestCat : null;
 }
 
-/* سؤال متنی → گفت‌وگوی چندمرحله‌ای و استریمیِ Gemini روی پایگاه دانش (RAG).
-   تا وقتی مدل سؤال می‌پرسد محصولی نشان داده نمی‌شود؛ وقتی اطلاعات کافی شد و تگ پیشنهاد آمد،
-   آن‌گاه محصول و منوی ادامه نمایش داده می‌شود. */
-function handleFree(text) { userMsg(text); return answerFree(text); }
-async function answerFree(text) {
-  geminiHistory.push({ role: 'user', text });
+/* نرمال‌سازی مشترک برای تطبیق و کش */
+function fnorm(s) { return (s || '').replace(/[ي]/g, 'ی').replace(/[ك]/g, 'ک').replace(/[‌]/g, ' ').toLowerCase(); }
 
-  // حباب بات با نقطه‌های تایپینگ تا رسیدن اولین کلمه
+/* (۱) مسیر سریعِ بدون مدل: اگر سؤالِ تازه به‌وضوح به یک سؤالِ تعریفیِ آماده بخورد، فوری جواب بده */
+function fastMatch(text) {
+  const words = fnorm(text).split(/\s+/).filter(w => w.length > 2);
+  if (!words.length) return null;
+  let best = null, bestScore = 0;
+  CATS.forEach(c => c.qs.forEach(item => {
+    if (item.clarify) return;                 // سؤال‌های نیازمند شفاف‌سازی → مدل
+    const hay = fnorm(item.q);
+    let s = 0; words.forEach(w => { if (hay.includes(w)) s++; });
+    if (s > bestScore) { bestScore = s; best = { catId: c.id, item: item }; }
+  }));
+  if (best && bestScore >= 2 && bestScore >= Math.ceil(words.length * 0.5)) return best;
+  return null;
+}
+
+/* (۲) کشِ پاسخ‌های مدل در مرورگر تا سؤال‌های تکراری فوری جواب بگیرند */
+function cacheKey(history) { return 'gc:' + fnorm(history.map(m => m.role + '=' + m.text).join('|')); }
+function getCache(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+function setCache(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+function newBotBubble() {
   const row = document.createElement('div');
   row.className = 'bot-row';
   row.innerHTML = `<div class="bot-avatar">${BOT_ICON}</div><div class="bubble-bot"><div class="typing"><span></span><span></span><span></span></div></div>`;
   chat.appendChild(row); scrollDown();
-  const bubble = row.querySelector('.bubble-bot');
+  return row;
+}
 
+/* سؤال متنی: اول مسیر سریع/کش، بعد گفت‌وگوی چندمرحله‌ایِ استریمیِ Gemini */
+function handleFree(text) { userMsg(text); return answerFree(text); }
+async function answerFree(text) {
+  // ۱) مسیر سریعِ بدون مدل (فقط برای سؤال تازه)
+  if (geminiHistory.length === 0) {
+    const fm = fastMatch(text);
+    if (fm) {
+      const bubble = newBotBubble().querySelector('.bubble-bot');
+      bubble.innerHTML = fm.item.a;           // پاسخ آمادهٔ HTML، فوری و با فرمت درست
+      scrollDown();
+      showProducts(pickProducts(fm.catId, fm.item.p));
+      await followUp(fm.catId);
+      return;
+    }
+  }
+
+  // ۲) مسیر مدل (با کش)
+  geminiHistory.push({ role: 'user', text });
+  const bubble = newBotBubble().querySelector('.bubble-bot');
   const context = retrieve(text).map(c => `• ${c.title}: ${c.text}`).join('\n')
     || KB.slice(0, 3).map(c => `• ${c.title}: ${c.text}`).join('\n');
+
+  const ck = cacheKey(geminiHistory);
+  const cached = getCache(ck);
+  if (cached && cached.full) {
+    await typeInto(bubble, cached.full);
+    geminiHistory.push({ role: 'model', text: cached.full });
+    if (cached.category && CATS.find(c => c.id === cached.category)) {
+      showProducts(pickProducts(cached.category, []));
+      resetGemini();
+      await followUp(cached.category);
+    }
+    return;
+  }
 
   let r = await streamToBubble(geminiHistory, context, bubble);
   if (r.noServer) r = await clientKeyAnswer(geminiHistory, context, bubble);
 
-  if (r.needKey) { row.remove(); geminiHistory.pop(); return askForKey(text); }
+  if (r.needKey) { bubble.parentElement.remove(); geminiHistory.pop(); return askForKey(text); }
   if (r.authError) { bubble.innerHTML = renderGemini('کلید Gemini نامعتبر بود. لطفاً دوباره واردش کن.'); geminiHistory.pop(); return keyInputBlock(text); }
   if (r.error) { bubble.innerHTML = renderGemini(r.error); geminiHistory.pop(); return keyRetryBlock(text); }
 
   geminiHistory.push({ role: 'model', text: r.full });
+  setCache(ck, { full: r.full, category: r.category || null });
 
   if (r.category && CATS.find(c => c.id === r.category)) {
-    // اطلاعات کافی جمع شد → حالا محصول پیشنهاد بده و گفت‌وگو را جمع‌بندی کن
     showProducts(pickProducts(r.category, []));
     resetGemini();
     await followUp(r.category);
   }
-  // در غیر این صورت سؤال شفاف‌کننده بود → محصول/منو نشان نمی‌دهیم؛ کاربر در باکس پایین پاسخ می‌دهد
+  // در غیر این صورت سؤال شفاف‌کننده بود → محصول/منو نشان نمی‌دهیم؛ کاربر پاسخ می‌دهد
 }
 
 /* گرفتن کلید Gemini از کاربر (فقط در مرورگر ذخیره می‌شود) */
