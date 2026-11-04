@@ -62,17 +62,20 @@ export default async function handler(req, res) {
           if (ld.error) out[ver + '_err'] = (ld.error.message || '').slice(0, 160);
         } catch (e) { out[ver + '_list_status'] = 'fetch_failed'; }
       }
-      const cand = (out['v1beta_models'] && out['v1beta_models'][0]) || (out['v1_models'] && out['v1_models'][0]);
-      if (cand) {
-        for (const ver of ['v1beta', 'v1']) {
-          try {
-            const gr = await fetch(`https://generativelanguage.googleapis.com/${ver}/models/${cand}:generateContent?key=${encodeURIComponent(key)}`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ contents: [{ parts: [{ text: 'سلام' }] }] }),
-            });
-            out[ver + '_gen_status_for_' + cand] = gr.status;
-          } catch (e) { out[ver + '_gen_status'] = 'fetch_failed'; }
-        }
+      const listed = out['v1beta_models'] || [];
+      const cands = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash']
+        .filter((m) => listed.includes(m));
+      out.gen = {};
+      for (const m of cands) {
+        try {
+          const gr = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(key)}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: 'سلام' }] }] }),
+          });
+          let detail = '';
+          if (!gr.ok) { const ej = await gr.json().catch(() => ({})); detail = (ej.error && ej.error.message || '').slice(0, 120); }
+          out.gen[m] = gr.status + (detail ? (' | ' + detail) : '');
+        } catch (e) { out.gen[m] = 'fetch_failed'; }
       }
       res.status(200).json(out);
       return;
