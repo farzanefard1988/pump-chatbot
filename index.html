@@ -693,10 +693,9 @@ function bestCategory(text) {
 /* سؤال متنی → پاسخ هوشمند با Gemini روی پایگاه دانش (RAG) */
 function handleFree(text) { userMsg(text); return answerFree(text); }
 async function answerFree(text) {
-  if (!getKey()) return askForKey(text);
   await typing();
   const chunks = retrieve(text);
-  const r = await callGemini(text, chunks);
+  const r = await callGemini(text, chunks);  // اول سرور (Vercel)، بعد در صورت نبودِ سرور کلید سمت‌کاربر
   if (r.needKey) return askForKey(text);
   if (r.authError) { await botMsg('کلید Gemini نامعتبر بود. لطفاً دوباره واردش کن.'); return keyInputBlock(text); }
   if (r.error) { await botMsg(r.error); return keyRetryBlock(text); }
