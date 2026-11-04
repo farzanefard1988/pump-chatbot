@@ -166,6 +166,7 @@
     border: 1px solid #e2e8f0; border-radius: 999px;
     padding: 6px 13px; font-size: 12.5px; line-height: 1.6;
     font-family: 'Vazirmatn', Tahoma, sans-serif; transition: background 0.15s;
+    max-width: 220px; overflow: hidden; text-overflow: ellipsis;
   }
   .chip:hover { background: #e2e8f0; }
   .chip.chip-home { font-weight: 600; }
@@ -450,7 +451,7 @@ let geminiHistory = [];                 // تاریخچهٔ گفت‌وگوی ت
 function resetGemini() { geminiHistory = []; }
 
 /* ═══ چیپس سریع بالای باکس ورودی ═══ */
-/* نام‌های کوتاه برای چیپس (تا متن کوتاه باشد) */
+/* نام‌های کوتاه دسته‌ها برای چیپسِ سوییچ موضوع */
 const CAT_SHORT = {
   home_pressure: 'فشار آب خانگی',
   booster: 'بوستر',
@@ -459,7 +460,9 @@ const CAT_SHORT = {
   industrial: 'صنعتی',
   troubleshoot: 'عیب‌یابی',
 };
-let chipCat = null;                     // دستهٔ فعلی برای چیپس‌های مرتبط
+/* چیپس‌ها آینهٔ گزینه‌های مرحلهٔ فعلی‌اند؛ «منوی اصلی» همیشه و جداست */
+let lastOptions = [];
+function setChips(opts) { lastOptions = Array.isArray(opts) ? opts : []; renderChips(); }
 function renderChips() {
   const bar = document.getElementById('chipsBar');
   if (!bar) return;
@@ -471,16 +474,17 @@ function renderChips() {
     el.onclick = () => { if (busy) return; fn(); };
     bar.appendChild(el);
   };
-  add('🏠 منوی اصلی', 'chip-home', () => showMainMenu());   // همیشه هست
-  // تکرار نکردنِ منو: در صفحهٔ اول دسته‌ها داخل منو هستند؛ فقط وقتی داخل یک دسته‌ایم،
-  // میان‌بُرِ کوتاهِ «دسته‌های دیگر» را نشان بده (نه سؤال‌های همان دسته که در منو هست).
-  if (chipCat) {
-    CATS.filter(c => c.id !== chipCat).forEach(c =>
-      add(CAT_SHORT[c.id] || c.label, '', () => { userMsg(c.label); sCat(c.id); }));
-  }
+  add('🏠 منوی اصلی', 'chip-home', () => showMainMenu());   // همیشه و جدا
+  lastOptions.forEach(o => add(o.label, '', o.fn));
+}
+/* میان‌بُرِ کوتاهِ دسته‌های دیگر (برای سوییچ موضوع بعد از پاسخ) */
+function otherCatChips(exceptId) {
+  return CATS.filter(c => c.id !== exceptId).map(c =>
+    ({ label: CAT_SHORT[c.id] || c.label, fn: () => { userMsg(c.label); sCat(c.id); } }));
 }
 async function showMainMenu() {
-  chipCat = null; resetGemini(); renderChips();
+  resetGemini();
+  setChips([]);                         // صفحهٔ اصلی: فقط «منوی اصلی»
   const b = makeBlock();
   CATS.forEach(c => addOpt(b, c.icon, c.label, () => { userMsg(c.label); sCat(c.id); }));
 }
@@ -743,7 +747,7 @@ function startNew() {
 /* ═══ STEP 0: greeting + category menu ═══ */
 async function s0() {
   resetGemini();
-  chipCat = null; renderChips();
+  setChips([]);                         // صفحهٔ اصلی: فقط «منوی اصلی»
   await botMsg('سلام! 👋 به پشتیبانی فروش پمپ و الکتروپمپ خوش اومدی.<br>در مورد کدام موضوع راهنمایی می‌خوای؟');
   const b = makeBlock();
   CATS.forEach(c => addOpt(b, c.icon, c.label, () => { userMsg(c.label); sCat(c.id); }));
@@ -752,13 +756,14 @@ async function s0() {
 /* ═══ STEP: category → popular questions ═══ */
 async function sCat(catId) {
   resetGemini();
-  chipCat = catId; renderChips();
   const cat = CATS.find(c => c.id === catId);
   await typing();
   await botMsg(`یکی از سؤال‌های پرتکرار دستهٔ «<b>${cat.label}</b>» رو انتخاب کن، یا سؤال خودت رو بنویس:`);
   const b = makeBlock();
   cat.qs.forEach((item, i) => addOpt(b, '', item.q, () => { userMsg(item.q); sAnswer(catId, i); }));
   addBack(b, s0);
+  // چیپس‌ها آینهٔ سؤال‌های همین دسته
+  setChips(cat.qs.map((item, i) => ({ label: item.q, fn: () => { resetGemini(); userMsg(item.q); sAnswer(catId, i); } })));
 }
 
 /* ═══ STEP: answer + products + follow-up ═══ */
@@ -783,6 +788,8 @@ async function askClarify(catId, qIndex) {
   item.clarify.options.forEach((op, i) =>
     addOpt(b, '', op.label, () => { userMsg(op.label); finishClarify(catId, qIndex, i); }));
   addBack(b, () => sCat(catId));
+  // چیپس‌ها آینهٔ گزینه‌های شفاف‌سازی
+  setChips(item.clarify.options.map((op, i) => ({ label: op.label, fn: () => { userMsg(op.label); finishClarify(catId, qIndex, i); } })));
 }
 async function finishClarify(catId, qIndex, optIndex) {
   const cat = CATS.find(c => c.id === catId);
@@ -799,6 +806,8 @@ async function followUp(catId) {
   addOpt(b, '↩️', 'سؤال دیگری از همین دسته', () => sCat(catId));
   addOpt(b, '📂', 'انتخاب دستهٔ دیگر', () => s0());
   addOpt(b, '✅', 'تمام شد، ممنون', () => endChat());
+  // بعد از پاسخ: چیپس‌ها میان‌بُرِ کوتاهِ دسته‌های دیگر
+  setChips(otherCatChips(catId));
 }
 
 /* تشخیص دستهٔ مرتبط برای پیشنهاد محصول */
@@ -862,8 +871,9 @@ async function answerFree(text) {
     if (cached.category && CATS.find(c => c.id === cached.category)) {
       showProducts(pickProducts(cached.category, []));
       resetGemini();
-      chipCat = cached.category; renderChips();
       await followUp(cached.category);
+    } else {
+      setChips(otherCatChips(null));
     }
     return;
   }
@@ -881,10 +891,11 @@ async function answerFree(text) {
   if (r.category && CATS.find(c => c.id === r.category)) {
     showProducts(pickProducts(r.category, []));
     resetGemini();
-    chipCat = r.category; renderChips();
     await followUp(r.category);
+  } else {
+    // سؤال شفاف‌کننده بود → محصول/منو نشان نمی‌دهیم؛ چیپسِ سوییچ موضوع می‌گذاریم
+    setChips(otherCatChips(null));
   }
-  // در غیر این صورت سؤال شفاف‌کننده بود → محصول/منو نشان نمی‌دهیم؛ کاربر پاسخ می‌دهد
 }
 
 /* گرفتن کلید Gemini از کاربر (فقط در مرورگر ذخیره می‌شود) */
