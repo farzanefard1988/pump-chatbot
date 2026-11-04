@@ -48,29 +48,28 @@ export default async function handler(req, res) {
     const prompt = `${SYSTEM_PROMPT}\n\n### اطلاعات:\n${context || '(اطلاعاتی یافت نشد)'}\n\n### سؤال کاربر:\n${query}\n\n### پاسخ:`;
     const cands = candidateModels();
 
-    let lastStatus = 0;
-    for (const model of cands.slice(0, 5)) {
-      const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-        }
-      );
-      if (r.ok) {
+    // چند مدل را هم‌زمان صدا می‌زنیم و اولین پاسخِ موفق را برمی‌گردانیم (سریع‌ترین برنده است)
+    const callModel = (model) =>
+      fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+      }).then(async (r) => {
+        if (!r.ok) throw new Error('status ' + r.status);
         const data = await r.json();
         const parts = (data && data.candidates && data.candidates[0] && data.candidates[0].content
           && data.candidates[0].content.parts) || [];
         const text = parts.map((p) => p.text || '').join('').trim();
-        res.status(200).json({ text: text || 'پاسخی دریافت نشد.' });
-        return;
-      }
-      lastStatus = r.status;
-      // ۴۰۴ (مدل منسوخ) یا ۵۰۳ (شلوغی موقت) یا ۵۰۰ → مدل بعدی را امتحان کن
-      if (r.status !== 404 && r.status !== 503 && r.status !== 500) break;
+        if (!text) throw new Error('empty');
+        return text;
+      });
+
+    try {
+      const text = await Promise.any(cands.slice(0, 3).map(callModel));
+      res.status(200).json({ text });
+    } catch (e) {
+      res.status(502).json({ error: 'پاسخ از Gemini گرفته نشد (احتمالاً شلوغی موقت). کمی بعد دوباره امتحان کنید.' });
     }
-    res.status(502).json({ error: `پاسخ از Gemini گرفته نشد (کد ${lastStatus}). کمی بعد دوباره امتحان کنید.` });
   } catch (e) {
     res.status(500).json({ error: 'خطای سرور در ارتباط با Gemini.' });
   }
