@@ -89,6 +89,8 @@ export default async function handler(req, res) {
   const reqBody = {
     systemInstruction: { parts: [{ text: `${SYSTEM_PROMPT}\n\n### اطلاعات:\n${context || '(اطلاعاتی یافت نشد)'}` }] },
     contents,
+    // خروجی کوتاه و سریع تا اجرای تابع زیر سقف زمانی Vercel بماند
+    generationConfig: { maxOutputTokens: 350, temperature: 0.5 },
   };
 
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
