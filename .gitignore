@@ -1,0 +1,17 @@
+# محیط مجازی و کش پایتون
+.venv/
+__pycache__/
+*.pyc
+
+# متغیرهای محیطی و کلیدها (هرگز commit نشوند)
+.env
+.env.local
+
+# لاگ‌ها و فایل‌های موقت
+*.log
+httpserver.log
+streamlit.log
+
+# تنظیمات محلی ادیتور/اجرا
+.claude/
+.DS_Store

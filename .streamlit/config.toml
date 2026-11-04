@@ -1,0 +1,15 @@
+[theme]
+base = "light"
+primaryColor = "#1d4ed8"
+backgroundColor = "#f8fafc"
+secondaryBackgroundColor = "#eef2ff"
+textColor = "#0f172a"
+font = "sans serif"
+
+[server]
+headless = true
+# اجازهٔ سرو فایل‌های استاتیک (مثل فونت IranSans در پوشهٔ static/fonts)
+enableStaticServing = true
+
+[browser]
+gatherUsageStats = false

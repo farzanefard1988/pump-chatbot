@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>پشتیبانی فروش پمپ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --primary: #1d4ed8; --primary-light: #eff6ff; --primary-dark: #1e3a8a; --primary-900: #172554;
+    --danger: #ef4444; --success: #10b981; --success-light: #def7ec;
+    --text-main: #172554; --text-secondary: #64748b; --text-muted: #94a3b8;
+    --border: #e2e8f0; --bg: #eef2f7; --white: #ffffff;
+    --bubble-bot: rgba(4,10,31,0.04); --bubble-user: rgba(29,78,216,0.10);
+    --radius: 18px; --radius-sm: 10px;
+    --avatar-size: 32px;
+    --menu-bg: #f8f9fd; --menu-border: #ebecf2;
+    --menu-text: rgba(4,10,31,0.87); --menu-text-muted: rgba(4,10,31,0.6);
+    --menu-radius: 8px;
+  }
+  body {
+    font-family: 'Vazirmatn', Tahoma, sans-serif;
+    background: var(--bg);
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .phone-frame {
+    width: 390px; height: 780px; background: var(--white);
+    border-radius: 28px;
+    box-shadow: 0 32px 80px rgba(29,78,216,0.22), 0 0 0 1px rgba(29,78,216,0.08);
+    overflow: hidden; display: flex; flex-direction: column; position: relative;
+  }
+  .header {
+    background: var(--white); padding: 18px 20px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .header-brand { display: flex; align-items: center; gap: 10px; }
+  .header-logo {
+    width: 34px; height: 34px; border-radius: 10px; background: var(--primary-light);
+    display: flex; align-items: center; justify-content: center; color: var(--primary);
+  }
+  .header-logo svg { width: 22px; height: 22px; display: block; }
+  .header-title { font-size: 16px; font-weight: 700; color: var(--text-main); }
+  .header-sub { font-size: 11px; font-weight: 500; color: var(--success); display: flex; align-items: center; gap: 4px; }
+  .header-sub::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--success); display: inline-block; }
+  .header-btn {
+    width: 34px; height: 34px; border: none; background: none; border-radius: 10px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    color: #040A1F; font-size: 16px; transition: all 0.2s;
+  }
+  .header-btn:hover { background: var(--primary-light); color: var(--primary); }
+  .header-btn svg { width: 18px; height: 18px; display: block; }
+
+  /* New conversation divider */
+  .chat-divider {
+    display: flex; align-items: center; gap: 10px;
+    margin: 10px 0 2px; color: var(--text-muted); font-size: 11.5px;
+  }
+  .chat-divider::before, .chat-divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .chat-divider span { white-space: nowrap; padding: 0 4px; }
+
+  /* ── CHAT ── */
+  .chat-area {
+    flex: 1; overflow-y: auto; padding: 20px 20px 24px;
+    display: flex; flex-direction: column; gap: 10px; scroll-behavior: smooth;
+  }
+  .chat-area::-webkit-scrollbar { width: 4px; }
+  .chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .bot-row + .opts-block { margin-top: -6px; }
+
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(8px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* ── BOT ROW (avatar on the right in RTL) ── */
+  .bot-row {
+    display: flex; flex-direction: row; align-items: flex-start; gap: 8px;
+    animation: msgIn 0.3s cubic-bezier(.34,1.56,.64,1) both;
+  }
+  .bot-avatar {
+    width: var(--avatar-size); height: var(--avatar-size);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 2px;
+    background: var(--primary-light); border-radius: 9px;
+  }
+  .bot-avatar svg { width: 22px; height: 22px; display: block; }
+  .bubble-bot {
+    max-width: 80%; padding: 12px 15px; border-radius: 16px;
+    border-top-right-radius: 4px; background: var(--bubble-bot);
+    font-size: 14px; line-height: 23px; color: rgba(4,10,31,0.87);
+  }
+  .bubble-bot b { color: var(--primary-900); font-weight: 700; }
+  .bubble-bot .src { margin-top: 8px; padding-top: 7px; border-top: 1px dashed var(--border); font-size: 11px; color: var(--text-secondary); line-height: 1.9; }
+  .bubble-bot .src a { color: var(--primary); text-decoration: none; }
+  .bubble-bot .src a:hover { text-decoration: underline; }
+
+  /* ── USER ROW (bubble on the left in RTL) ── */
+  .user-row {
+    display: flex; flex-direction: row; justify-content: flex-end;
+    animation: msgIn 0.3s cubic-bezier(.34,1.56,.64,1) both;
+  }
+  .bubble-user {
+    max-width: 80%; padding: 12px 15px; border-radius: 16px;
+    border-top-left-radius: 4px; background: var(--bubble-user);
+    font-size: 14px; line-height: 23px; font-weight: 500; color: var(--primary-900);
+  }
+
+  /* ── OPTIONS BLOCK ── */
+  .opts-block {
+    padding-right: calc(var(--avatar-size) + 8px);
+    display: flex; flex-direction: column; gap: 8px;
+    animation: msgIn 0.3s cubic-bezier(.34,1.56,.64,1) both;
+  }
+  .opts-block.locked { pointer-events: none; opacity: 0.45; }
+  .opts-list {
+    background: var(--menu-bg); border: 1px solid var(--menu-border);
+    border-radius: var(--menu-radius); overflow: hidden;
+  }
+  .opt-btn {
+    width: 100%; min-height: 48px; padding: 11px 16px; background: var(--menu-bg); border: none;
+    border-bottom: 1px solid var(--menu-border); cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+    transition: background 0.15s; text-align: right; gap: 10px;
+    font-family: 'Vazirmatn', Tahoma, sans-serif;
+  }
+  .opt-btn:last-child { border-bottom: none; }
+  .opt-btn:hover { background: var(--primary-light); }
+  .opt-btn:hover .opt-label { color: var(--primary); }
+  .opt-btn:hover .chev { color: var(--primary); transform: translateX(-2px); }
+  .opt-right { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
+  .opt-icon { font-size: 19px; width: 24px; text-align: center; flex-shrink: 0; }
+  .opt-label {
+    color: var(--menu-text); text-align: right; min-width: 0; flex: 1;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    font-size: 14px; font-weight: 500; line-height: 22px;
+  }
+  .chev { color: var(--menu-text-muted); flex-shrink: 0; display: flex; align-items: center; transition: transform 0.15s, color 0.15s; }
+  .chev svg { width: 16px; height: 16px; display: block; }
+
+  /* Sticky composer pinned to the bottom of the frame (outside the chat flow) */
+  .composer {
+    flex-shrink: 0; display: flex; align-items: center;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: var(--white); border-top: 1px solid var(--border);
+  }
+  .ask-field { position: relative; flex: 1; min-width: 0; }
+  .ask-inp {
+    width: 100%; padding: 12px 16px; padding-left: 50px; border: 1px solid var(--menu-border);
+    border-radius: 24px; font-family: 'Vazirmatn', Tahoma, sans-serif; font-size: 13.5px;
+    color: var(--text-main); background: #f8f9fd; outline: none; transition: border 0.15s, background 0.15s;
+  }
+  .ask-inp:focus { border-color: var(--primary); background: var(--white); }
+  /* دکمهٔ دایره‌ای توپرِ آبی داخل باکس؛ فقط هنگام تایپ ظاهر می‌شود */
+  .ask-send {
+    position: absolute; left: 6px; top: 50%; transform: translateY(-50%);
+    width: 34px; height: 34px; border: none; border-radius: 50%; cursor: pointer;
+    background: var(--primary); color: #fff; display: none; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .ask-send.show { display: flex; }
+  .ask-send:hover { background: var(--primary-dark); }
+  .ask-send svg { width: 16px; height: 16px; }
+
+  /* Back button */
+  .back-btn {
+    background: none; border: none; font-family: 'Vazirmatn', Tahoma, sans-serif;
+    font-size: 13px; color: var(--text-secondary); cursor: pointer;
+    display: flex; align-items: center; gap: 4px; padding: 4px 2px; transition: color 0.2s;
+    align-self: flex-end;
+  }
+  .back-btn:hover { color: var(--primary); }
+  .back-btn svg { width: 15px; height: 15px; display: block; }
+
+  /* ── Product recommendation carousel ── */
+  .rec-title { font-size: 13px; font-weight: 700; color: var(--primary-dark); margin: 2px 2px 4px; display: flex; align-items: center; gap: 6px; }
+  .carousel {
+    display: flex; direction: rtl; gap: 10px; overflow-x: auto; padding: 2px 2px 10px;
+    scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+  }
+  .carousel::-webkit-scrollbar { height: 5px; }
+  .carousel::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  .pcard {
+    flex: 0 0 auto; width: 210px; scroll-snap-align: start;
+    background: var(--white); border: 1px solid var(--border); border-top: 3px solid var(--primary);
+    border-radius: 12px; padding: 12px; display: flex; flex-direction: column;
+    box-shadow: 0 1px 3px rgba(97,100,117,0.12);
+  }
+  .pcard .pname { font-weight: 700; color: var(--primary-900); font-size: 13px; line-height: 1.7; }
+  .pcard .pprice { color: var(--primary); font-weight: 800; font-size: 13.5px; margin-top: 5px; }
+  .pcard .pdesc { color: #475569; font-size: 11px; margin-top: 7px; line-height: 1.8; flex: 1; }
+  .pcard .buy {
+    margin-top: 10px; text-align: center; text-decoration: none; background: var(--primary);
+    color: #fff; font-size: 12.5px; font-weight: 600; padding: 8px; border-radius: 8px; transition: background 0.15s;
+  }
+  .pcard .buy:hover { background: var(--primary-dark); }
+
+  /* ── Typing dots ── */
+  @keyframes typingBounce { 0%,60%,100%{transform:translateY(0);opacity:.4} 30%{transform:translateY(-4px);opacity:1} }
+  .typing { display: flex; gap: 4px; align-items: center; padding: 2px 0; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); animation: typingBounce 1.2s infinite ease-in-out; }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; }
+
+  /* ── End-of-conversation feedback ── */
+  .feedback-block { align-items: center; gap: 14px; margin-top: 6px; padding-right: 0 !important; }
+  .feedback-divider { width: 100%; border: none; border-top: 1px solid var(--border); }
+  .feedback-card {
+    width: 100%; background: var(--menu-bg); border: 1px solid var(--menu-border);
+    border-radius: 12px; padding: 14px; text-align: center;
+  }
+  .feedback-label { font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 10px; }
+  .feedback-emojis { display: flex; justify-content: center; gap: 8px; }
+  .feedback-emoji-btn {
+    width: 40px; height: 40px; border: 1px solid var(--menu-border); background: var(--white);
+    border-radius: 10px; font-size: 20px; cursor: pointer; transition: all 0.15s;
+  }
+  .feedback-emoji-btn:hover, .feedback-emoji-btn.sel { background: var(--primary-light); border-color: var(--primary); transform: translateY(-2px); }
+  .feedback-success-wrapper { display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .feedback-success-text { font-size: 13.5px; font-weight: 600; color: var(--text-main); }
+  .feedback-action-row { display: flex; gap: 10px; width: 100%; }
+  .feedback-btn-primary {
+    flex: 1; padding: 11px; border: none; border-radius: 10px; cursor: pointer;
+    background: var(--primary); color: #fff; font-family: 'Vazirmatn', Tahoma, sans-serif;
+    font-size: 13.5px; font-weight: 600; transition: background 0.15s;
+  }
+  .feedback-btn-primary:hover { background: var(--primary-dark); }
+  .feedback-btn-dark {
+    flex: 1; padding: 11px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer;
+    background: var(--white); color: var(--text-secondary); font-family: 'Vazirmatn', Tahoma, sans-serif;
+    font-size: 13.5px; font-weight: 600; transition: all 0.15s;
+  }
+  .feedback-btn-dark:hover { background: #f1f5f9; color: var(--text-main); }
+</style>
+</head>
+<body>
+<div class="phone-frame">
+  <div class="header">
+    <div class="header-brand">
+      <div class="header-logo" id="headerLogo"></div>
+      <div>
+        <div class="header-title">پشتیبانی فروش پمپ</div>
+        <div class="header-sub">آنلاین</div>
+      </div>
+    </div>
+    <button class="header-btn" title="گفت‌وگوی جدید" onclick="startNew()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.4 2.6L3 8"/><path d="M3 3v5h5"/></svg>
+    </button>
+  </div>
+  <div class="chat-area" id="chatArea"></div>
+  <div class="composer">
+    <div class="ask-field">
+      <input class="ask-inp" id="askInp" placeholder="سؤال خودتان را بنویسید…" autocomplete="off">
+      <button class="ask-send" id="askSend" title="ارسال">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+const chat = document.getElementById('chatArea');
+let busy = false;
+let typingN = 0;
+let activeBlock = null;
+
+/* ═══ CONTENT (pump domain) ═══ */
+const PRODUCTS = {
+  P001: { name:'الکتروپمپ محیطی پدرولا PKm60', price:12900000, url:'https://torob.com/search/?query=پمپ محیطی پدرولا PKm60', desc:'محیطی تکفاز ۰٫۵ اسب، افزایش فشار یک واحد کوچک؛ هد بالا، دبی کم.' },
+  P002: { name:'پمپ جتی خودمکش داب JET 102M', price:28600000, url:'https://torob.com/search/?query=پمپ جتی داب JET 102', desc:'خودمکش یک اسب، مکش از چاه کم‌عمق؛ مناسب ویلا و باغ.' },
+  P003: { name:'بوستر پمپ دور متغیر ساختمان', price:62000000, url:'https://torob.com/search/?query=بوستر پمپ ساختمان دور متغیر', desc:'دوبل با درایو دور متغیر؛ فشار ثابت در همهٔ طبقات، مصرف بهینه.' },
+  P004: { name:'پمپ طبقاتی عمودی صنعتی', price:41000000, url:'https://torob.com/search/?query=پمپ طبقاتی عمودی سه فاز', desc:'سه‌فاز، هد تا ~۹۰ متر؛ آبیاری تحت فشار و کاربرد صنعتی.' },
+  P005: { name:'پمپ کفکش ۲ اینچ استیل فلوتردار', price:6200000, url:'https://torob.com/search/?query=پمپ کفکش 2 اینچ استیل فلوتردار', desc:'تخلیهٔ آب تمیز زیرزمین/استخر با قطع خودکار فلوتر.' },
+  P006: { name:'پمپ لجن‌کش فاضلابی سه‌فاز', price:13500000, url:'https://torob.com/search/?query=پمپ لجن کش فاضلاب سه فاز', desc:'پروانهٔ باز، عبور ذرات درشت و لجن؛ چاه فاضلاب و صنعت.' },
+  P007: { name:'الکتروپمپ گریز از مرکز صنعتی', price:29000000, url:'https://torob.com/search/?query=پمپ گریز از مرکز صنعتی سه فاز', desc:'سه‌فاز ۵٫۵ اسب، انتقال سیال با دبی بالا در خط تولید.' },
+  P008: { name:'پمپ شناور چاه عمیق ۶ اینچ', price:58000000, url:'https://torob.com/search/?query=پمپ شناور چاه عمیق 6 اینچ', desc:'سابمرسیبل سه‌فاز؛ کشاورزی و تأمین آب از چاه عمیق.' },
+};
+
+const CATS = [
+  { id:'home_pressure', icon:'🏠', label:'فشار آب خانگی', qs:[
+    { q:'برای افزایش فشار آب یک آپارتمان کوچک چه پمپی مناسبه؟',
+      clarify:{ prompt:'برای راهنمایی دقیق‌تر، ساختمان چند واحد یا طبقه است؟', options:[
+        { label:'یک واحد / تا ۲ طبقه', a:'برای یک واحد کوچک، <b>الکتروپمپ محیطی تکفاز ۰٫۵ اسب</b> کافی است: فشار خوب، نصب ساده و هزینهٔ کم.', p:['P001'] },
+        { label:'۳ تا ۶ واحد', a:'برای چند واحد، یک <b>پمپ جتی/بشقابی</b> یا یک <b>بوستر کوچک</b> فشار یکنواخت‌تری می‌دهد.', p:['P002','P003'] },
+        { label:'بیش از ۶ واحد', a:'برای تعداد واحد بالا بهتر است سراغ <b>بوستر پمپ</b> بروید تا فشار همهٔ واحدها ثابت بماند.', p:['P003'] },
+      ]},
+      a:'برای یک واحد مسکونی کوچک، <b>الکتروپمپ محیطی تکفاز</b> حدود ۰٫۵ اسب بهترین گزینه است: هد بالا با دبی کم و نصب ساده.', p:['P001'] },
+    { q:'پمپ محیطی بهتره یا بشقابی؟',
+      a:'<b>محیطی</b> برای افزایش فشار یک واحد و دبی کم عالی است. <b>بشقابی/جتی</b> قدرت مکش بیشتری دارد و برای کشیدن آب از چاه کم‌عمق یا منبع پایین‌تر و دبی بیشتر مناسب‌تر است.', p:['P001','P002'] },
+    { q:'برای آبرسانی خانهٔ ویلایی و باغ چی خوبه؟',
+      clarify:{ prompt:'آب را باید از کجا تأمین کنید؟', options:[
+        { label:'از چاه کم‌عمق یا منبع پایین‌تر', a:'برای مکش از چاه کم‌عمق یا منبع، <b>پمپ جتی خودمکش</b> بهترین گزینه است.', p:['P002'] },
+        { label:'فقط افزایش فشار آب لوله‌کشی', a:'اگر آب هست و فقط فشار کم است، <b>پمپ محیطی</b> کافی و کم‌هزینه است.', p:['P001'] },
+      ]},
+      a:'در ویلا و باغ معمولاً باید آب را از منبع یا چاه کم‌عمق کشید؛ <b>پمپ جتی خودمکش یک اسب</b> با مکش و دبی خوب گزینهٔ مناسبی است.', p:['P002'] },
+  ]},
+  { id:'booster', icon:'🏢', label:'بوستر پمپ ساختمان', qs:[
+    { q:'برای یک ساختمان ۸ طبقه چه بوستر پمپی لازم دارم؟',
+      clarify:{ prompt:'تعداد واحدهای ساختمان تقریباً چقدر است؟', options:[
+        { label:'تا ۲۰ واحد', a:'برای تا حدود ۲۰ واحد، یک <b>بوستر دوبل دور متغیر</b> مناسب و بهینه است.', p:['P003','P004'] },
+        { label:'بیش از ۲۰ واحد', a:'برای واحدهای بیشتر، <b>بوستر دوبل/سه‌تایی دور متغیر</b> با پمپ‌های طبقاتی قوی‌تر لازم است.', p:['P003','P004'] },
+      ]},
+      a:'برای ساختمان بلند، <b>بوستر پمپ</b> (ترجیحاً دور متغیر) لازم است تا فشار در همهٔ طبقات ثابت بماند؛ برای ۸ طبقه یک <b>بوستر دوبل</b> مناسب است.', p:['P003'] },
+    { q:'بوستر پمپ دور متغیر چه مزیتی داره؟',
+      a:'درایو <b>دور متغیر (VFD)</b> دور موتور را متناسب با مصرف تنظیم می‌کند: فشار یکنواخت، مصرف برق کمتر، استارت نرم و عمر بیشتر پمپ.', p:['P003'] },
+    { q:'بوستر پمپ بهتره یا پمپ معمولی؟',
+      a:'پمپ معمولی با باز/بسته شدن شیرها فشار نوسانی می‌دهد؛ <b>بوستر</b> با کنترل و مخزن، فشار ثابت و پایدار می‌دهد و برای ساختمان چندواحدی ضروری است.', p:['P003'] },
+  ]},
+  { id:'drain', icon:'🌊', label:'کفکش و لجن‌کش', qs:[
+    { q:'فرق کفکش و لجن‌کش چیه؟',
+      a:'<b>کفکش</b> برای آب نسبتاً تمیز با ذرات ریز است. <b>لجن‌کش</b> پروانهٔ باز دارد و ذرات درشت و فاضلاب/لجن را عبور می‌دهد.', p:['P005','P006'] },
+    { q:'برای تخلیه فاضلاب چاه چی لازم دارم؟',
+      a:'برای فاضلاب و لجن چاه، <b>پمپ لجن‌کش سه‌فاز</b> با پروانهٔ باز لازم است تا ذرات درشت گرفتگی ایجاد نکنند.', p:['P006'] },
+    { q:'برای تخلیه آب زیرزمین چه پمپی خوبه؟',
+      clarify:{ prompt:'آبی که می‌خواهید تخلیه شود چطور است؟', options:[
+        { label:'آب تمیز یا با ذرات ریز', a:'برای آب تمیز، <b>کفکش استیل فلوتردار</b> با قطع خودکار بهترین گزینه است.', p:['P005'] },
+        { label:'آب گل‌آلود / دارای ذرات درشت', a:'برای آب گل‌آلود و ذرات درشت، به <b>لجن‌کش</b> نیاز دارید نه کفکش.', p:['P006'] },
+      ]},
+      a:'برای تخلیهٔ آب تمیز جمع‌شده در زیرزمین یا استخر، <b>کفکش استیل فلوتردار</b> (قطع خودکار) مناسب است.', p:['P005'] },
+  ]},
+  { id:'well', icon:'🚜', label:'چاه عمیق و کشاورزی', qs:[
+    { q:'برای چاه عمیق کشاورزی چه پمپی پیشنهاد می‌دید؟',
+      clarify:{ prompt:'عمق چاه تقریباً چقدر است؟', options:[
+        { label:'کمتر از ۳۰ متر', a:'برای چاه کم‌عمق، <b>پمپ شناور یا طبقاتی</b> متناسب با دبی موردنیاز انتخاب می‌شود.', p:['P008','P004'] },
+        { label:'۳۰ تا ۸۰ متر', a:'برای این عمق، <b>پمپ شناور چاه عمیق ۶ اینچ</b> گزینهٔ استاندارد است.', p:['P008'] },
+        { label:'بیش از ۸۰ متر', a:'برای چاه خیلی عمیق، <b>شناور با طبقات بیشتر و هد بالا</b> لازم است؛ حتماً با منحنی عملکرد انتخاب شود.', p:['P008','P004'] },
+      ]},
+      a:'<b>پمپ شناور (سابمرسیبل) چاه عمیق</b>؛ انتخاب بر اساس عمق چاه، قطر لوله و سطح ایستابی انجام می‌شود.', p:['P008'] },
+    { q:'پمپ شناور چطور انتخاب می‌شه؟',
+      clarify:{ prompt:'دبی موردنیاز (مقدار آب) چقدر است؟', options:[
+        { label:'کم (باغ کوچک)', a:'برای دبی کم، یک <b>شناور کوچک</b> کافی است؛ عمق و قطر چاه را هم در نظر بگیرید.', p:['P008'] },
+        { label:'زیاد (کشاورزی وسیع)', a:'برای دبی بالا، <b>شناور بزرگ‌تر یا طبقاتی قوی</b> لازم است.', p:['P008','P004'] },
+        { label:'نمی‌دانم', a:'اشکالی ندارد؛ سه پارامتر عمق، دبی و قطر چاه را با کارشناس چک کنید. پیش‌فرض رایج، <b>شناور ۶ اینچ</b> است.', p:['P008'] },
+      ]},
+      a:'سه پارامتر کلیدی: <b>عمق/هد موردنیاز</b>، <b>دبی</b> (مترمکعب بر ساعت) و <b>قطر چاه</b> (مثلاً ۶ اینچ). حتماً از منحنی عملکرد و مشاورهٔ فنی استفاده کنید.', p:['P008'] },
+    { q:'برای آبیاری تحت فشار چه پمپی خوبه؟',
+      a:'آبیاری تحت فشار به هد بالا نیاز دارد؛ <b>پمپ طبقاتی عمودی سه‌فاز</b> گزینهٔ مناسبی است.', p:['P004'] },
+  ]},
+  { id:'industrial', icon:'🏭', label:'پمپ صنعتی', qs:[
+    { q:'برای انتقال سیال در خط تولید چه پمپی مناسبه؟',
+      a:'<b>الکتروپمپ گریز از مرکز سه‌فاز</b> برای انتقال آب/سیال با دبی بالا و هد متوسط در خطوط صنعتی مناسب است.', p:['P007'] },
+    { q:'تکفاز بخرم یا سه‌فاز؟',
+      clarify:{ prompt:'کاربرد و توان موردنیاز چیست؟', options:[
+        { label:'خانگی / تا ۲ اسب', a:'برای مصارف خانگی و توان پایین، <b>تکفاز</b> کافی و مقرون‌به‌صرفه است.', p:['P001','P002'] },
+        { label:'صنعتی / توان بالا', a:'برای توان بالا و کارکرد مداوم، <b>سه‌فاز</b> بهینه‌تر، کم‌دردسرتر و کم‌مصرف‌تر است.', p:['P007','P004'] },
+      ]},
+      a:'<b>تکفاز</b> تا حدود ۲ اسب و مصارف خانگی؛ برای توان بالا، کارکرد مداوم و صنعت، <b>سه‌فاز</b> بهینه‌تر و کم‌دردسرتر است.', p:['P007'] },
+    { q:'پمپ گریز از مرکز برای چه کاربردی خوبه؟',
+      a:'گریز از مرکز پرکاربردترین نوع پمپ است: آبرسانی، انتقال سیال کم‌لزجت و دبی بالا با هد متوسط.', p:['P007'] },
+  ]},
+  { id:'troubleshoot', icon:'🛠️', label:'عیب‌یابی و مشاوره', qs:[
+    { q:'پمپ روشنه ولی آب نمیده، مشکل چیه؟',
+      clarify:{ prompt:'پمپ تازه نصب شده یا قبلاً درست کار می‌کرد؟', options:[
+        { label:'تازه نصب شده', a:'احتمالاً <b>هواگیری نشده</b> یا جهت چرخش/اتصالات اشتباه است. ابتدا هواگیری کنید و جهت چرخش موتور را بررسی کنید.', p:[] },
+        { label:'قبلاً کار می‌کرد', a:'احتمالاً <b>گرفتگی مسیر مکش</b>، نشتی هوا یا خرابی خازن/پروانه است. مسیر مکش و خازن را بررسی کنید.', p:[] },
+      ]},
+      a:'معمولاً به‌دلیل <b>هواگیری‌نشدن</b>، بسته/گرفته بودن شیر مکش، ورود هوا به مسیر مکش یا خرابی خازن است. ابتدا هواگیری کنید و مسیر مکش را بررسی کنید.', p:[] },
+    { q:'کاویتاسیون چیه و چطور رفعش کنم؟',
+      a:'<b>کاویتاسیون</b> یعنی تشکیل و ترکیدن حباب بخار به‌علت افت فشار مکش (صدای شن و خوردگی پروانه). رفع: کاهش ارتفاع مکش، لولهٔ مکش کوتاه‌تر/بزرگ‌تر و تأمین NPSH کافی.', p:[] },
+    { q:'چرا موتور پمپ داغ می‌کنه؟',
+      a:'علل رایج: <b>اضافه‌بار</b>، ولتاژ نامناسب، کارکرد خارج از نقطهٔ کار یا خنک‌کاری ناکافی. بار و ولتاژ را بررسی و پمپ را در نقطهٔ کار صحیح استفاده کنید.', p:[] },
+  ]},
+];
+
+/* حداقل ۳ محصول برای هر پاسخ: محصول اختصاصی + تکمیل از محصولات مرتبط دسته */
+const CATPRODUCTS = {
+  home_pressure: ['P001','P002','P003'],
+  booster:       ['P003','P004','P001'],
+  drain:         ['P005','P006','P008'],
+  well:          ['P008','P004','P002'],
+  industrial:    ['P007','P004','P003'],
+  troubleshoot:  ['P001','P003','P007'],
+};
+function pickProducts(catId, primary) {
+  const out = [];
+  (primary || []).forEach(id => { if (PRODUCTS[id] && !out.includes(id)) out.push(id); });
+  (CATPRODUCTS[catId] || []).forEach(id => { if (PRODUCTS[id] && !out.includes(id)) out.push(id); });
+  Object.keys(PRODUCTS).forEach(id => { if (out.length < 3 && !out.includes(id)) out.push(id); });
+  return out.slice(0, 3);
+}
+
+/* منبع مقالات هر دسته (پاسخ‌ها از خلاصهٔ این مقالات داخلی/خارجی تهیه شده‌اند) */
+const CATSOURCES = {
+  home_pressure: [
+    { t:'جام‌جم: پمپ آب ساختمانی ۱ تا ۹ طبقه', u:'https://jamejamonline.ir/fa/news/1539112' },
+    { t:'فامکو: پمپ آب خانگی', u:'https://www.famcocorp.com/pcat/170701' },
+  ],
+  booster: [
+    { t:'Armstrong: Booster Pumps', u:'https://blog.armstrongfluidtechnology.com/an-introduction-to-domestic-water-pressure-booster-pumps' },
+    { t:'MODBS: Variable-Speed Pumps', u:'https://modbs.co.uk/news/fullstory.php/aid/14386/' },
+  ],
+  drain: [
+    { t:'فامکو: تفاوت کفکش و لجن‌کش', u:'https://www.famcocorp.com/article/2317' },
+    { t:'ایمالز: راهنمای خرید کفکش/لجن‌کش', u:'https://emalls.ir/Text/344330' },
+  ],
+  well: [
+    { t:'فامکو: نحوهٔ انتخاب پمپ شناور', u:'https://www.famcocorp.com/article/2288' },
+    { t:'Bob Vila: How to Choose a Well Pump', u:'https://www.bobvila.com/articles/how-to-choose-a-well-pump' },
+  ],
+  industrial: [
+    { t:'RPS: تکفاز یا سه‌فاز', u:'https://rpswaterpumps.com/blogs/water-pump-faqs/which-pump-is-better-single-phase-or-three-phase' },
+    { t:'Pumps & Systems: Centrifugal Basics', u:'https://www.pumpsandsystems.com/suction-piping-npsh-cavitation' },
+  ],
+  troubleshoot: [
+    { t:'فامکو: عیب‌یابی پمپ کفکش', u:'https://www.famcocorp.com/product/15096' },
+    { t:'Pumps & Systems: NPSH & Cavitation', u:'https://www.pumpsandsystems.com/suction-piping-npsh-cavitation' },
+  ],
+};
+function withSources(catId, html) {
+  const list = CATSOURCES[catId] || [];
+  if (!list.length) return html;
+  const links = list.map(s => `<a href="${s.u}" target="_blank" rel="noopener">${s.t}</a>`).join(' · ');
+  return html + `<div class="src">📄 برگرفته از: ${links}</div>`;
+}
+
+/* ═══ Gemini (RAG) برای سؤال‌های تایپ‌آزاد ═══ */
+const GEMINI_MODEL = 'gemini-2.0-flash';
+function getKey() { try { return localStorage.getItem('gemini_key') || ''; } catch (e) { return ''; } }
+function setKey(k) { try { localStorage.setItem('gemini_key', k); } catch (e) {} }
+
+/* پایگاه دانش مقاله‌محور (خلاصهٔ منبع‌دار) — متنِ زمینه برای RAG */
+const KB = [
+  { title:'دبی، هد و نقطهٔ کار', kw:'دبی هد منحنی عملکرد نقطه کار اسب بخار', text:'دو کمیت اصلی انتخاب پمپ دبی (آبدهی) و هد (ارتفاع/فشار بر حسب متر) است. در منحنی H-Q بیشترین هد در دبی صفر است و با افزایش دبی هد کم می‌شود. نقطهٔ کار محل تقاطع منحنی پمپ و سیستم است؛ انتخاب فقط بر اساس اسب‌بخار اشتباه است.' },
+  { title:'محیطی در برابر بشقابی/جتی', kw:'محیطی پریفرال بشقابی جتی خودمکش فشار خانگی', text:'پمپ محیطی (۰٫۵ تا ۳ اسب) هد بالا با دبی کم می‌دهد و برای افزایش فشار یک واحد کوچک مناسب است. پمپ جتی/بشقابی (۱ تا ۴ اسب) قدرت مکش بیشتری دارد و برای کشیدن آب از چاه کم‌عمق یا منبع پایین‌تر و دبی بیشتر بهتر است.' },
+  { title:'فشار آب ساختمان و تعداد طبقات', kw:'ساختمان طبقه واحد فشار آپارتمان', text:'انتخاب پمپ ساختمان به تعداد طبقات، تعداد واحد و مصرف هم‌زمان بستگی دارد. یک واحد کوچک با پمپ محیطی تکفاز؛ تعداد واحد بیشتر با پمپ قوی‌تر یا بوستر. وقتی فشار شهری برای بلندترین واحد (حدود ۳۰psi) کافی نباشد بوستر لازم است.' },
+  { title:'بوستر پمپ و دور متغیر', kw:'بوستر دور متغیر vfd ساختمان فشار ثابت مصرف برق', text:'بوستر فشار را در ساختمان بلند ثابت نگه می‌دارد. دور ثابت با پرشرسوئیچ نوسان و ضربهٔ فشار و مصرف ثابت دارد؛ دور متغیر (VFD) دور موتور را با نیاز تنظیم می‌کند: فشار یکنواخت، استارت نرم، عمر بیشتر و تا حدود ۵۰٪ صرفه‌جویی برق. برای واحد زیاد بوستر دوبل توصیه می‌شود.' },
+  { title:'تفاوت کفکش و لجن‌کش', kw:'کفکش لجن کش فاضلاب زیرزمین استخر چاه آب تمیز لجن', text:'کفکش برای آب نسبتاً تمیز یا ذرات ریز (چاه، زیرزمین، استخر) است و ذرات درشت را پاس نمی‌دهد. لجن‌کش پروانهٔ باز دارد و برای آب گل‌آلود، لجن و فاضلاب با ذرات درشت است. در انتخاب نوع برق، دبی و سایز خروجی هم مهم است.' },
+  { title:'پمپ شناور چاه عمیق', kw:'شناور سابمرسیبل چاه عمیق کشاورزی عمق قطر دبی هد', text:'برای چاه عمیق پمپ شناور انتخاب می‌شود. پارامترها: عمق چاه و سطح ایستابی، قطر دهانه (مثلاً ۶ اینچ)، دبی و هد کل (ارتفاع + افت لوله). در پمپ طبقاتی هر پروانه حدود ۳۰ متر هد می‌دهد. پمپ بزرگ‌تر از لازم باعث کارکرد قطع‌ووصلِ پیاپی و خرابی موتور می‌شود.' },
+  { title:'آبیاری تحت فشار', kw:'آبیاری تحت فشار طبقاتی عمودی هد بالا', text:'آبیاری تحت فشار به هد بالا نیاز دارد؛ پمپ طبقاتی عمودی سه‌فاز مناسب است. دور متغیر در آبیاری راندمان را بالا و مصرف برق را کم می‌کند.' },
+  { title:'گریز از مرکز صنعتی', kw:'گریز از مرکز سانتریفیوژ صنعتی انتقال سیال خط تولید دبی بالا', text:'پمپ گریز از مرکز پرکاربردترین نوع است؛ برای آبرسانی و انتقال سیال کم‌لزجت با دبی بالا و هد متوسط در خطوط صنعتی. انتخاب با منحنی عملکرد و نقطهٔ کار صحیح انجام می‌شود.' },
+  { title:'تکفاز یا سه‌فاز', kw:'تکفاز سه فاز موتور برق توان صنعتی خانگی', text:'تکفاز برای پمپ‌های کوچک، خانگی و کم‌کار (تا حدود ۲ اسب) و جایی که فقط برق تکفاز هست. سه‌فاز برای توان بالا، کارکرد مداوم و صنعت: راندمان بالاتر، استارت ساده‌تر و امکان استفاده از VFD.' },
+  { title:'کاویتاسیون و NPSH', kw:'کاویتاسیون npsh حباب بخار مکش پروانه خوردگی', text:'کاویتاسیون تشکیل و ترکیدن حباب بخار به‌علت افت فشار مکش است؛ صدای شن، لرزش و خوردگی پروانه. باید NPSH در دسترس با حاشیهٔ اطمینان از NPSH موردنیاز بیشتر باشد. رفع: کاهش ارتفاع مکش، لولهٔ مکش کوتاه‌تر/بزرگ‌تر، کاهش دمای سیال.' },
+  { title:'عیب‌یابی: آب نمی‌دهد', kw:'آب نمیدهد روشن است هواگیری مکش خازن آبدهی', text:'علل: هواگیری‌نشدن، بسته/گرفته بودن شیر مکش، ورود هوا، جدا شدن لولهٔ تخلیه، گیرکردن روتور بر اثر خوردگی، ورود لجن، خرابی خازن. گام‌ها: هواگیری، بررسی مسیر و شیر مکش، سطح آب و برق، تمیز کردن داخل پمپ. اگر تازه نصب شده جهت چرخش را چک کن.' },
+  { title:'عیب‌یابی: موتور داغ می‌کند', kw:'داغ موتور اضافه بار ولتاژ خنک کاری خشک', text:'علل داغ‌شدن: اضافه‌بار، ولتاژ نامناسب، کارکرد خارج از نقطهٔ کار، گرفتگی/اصطکاک، خنک‌کاری ناکافی. بار و ولتاژ را بررسی و پمپ را در نقطهٔ کار صحیح استفاده کن؛ کارکرد خشک را ادامه نده.' },
+];
+function retrieve(query) {
+  const norm = s => (s || '').replace(/[ي]/g,'ی').replace(/[ك]/g,'ک').replace(/[‌]/g,' ').toLowerCase();
+  const words = norm(query).split(/\s+/).filter(w => w.length > 2);
+  return KB.map(c => {
+    const hay = norm(c.title + ' ' + c.kw + ' ' + c.text);
+    let s = 0; words.forEach(w => { if (hay.includes(w)) s++; });
+    return { c, s };
+  }).sort((a, b) => b.s - a.s).filter(x => x.s > 0).slice(0, 3).map(x => x.c);
+}
+async function callGemini(query, chunks) {
+  const key = getKey();
+  if (!key) return { needKey: true };
+  const context = (chunks.length ? chunks : KB.slice(0, 3)).map(c => `• ${c.title}: ${c.text}`).join('\n');
+  const sys = 'تو «کارشناس فروش» یک فروشگاه پمپ و الکتروپمپ صنعتی هستی و فقط فارسی پاسخ می‌دهی. فقط و فقط بر اساس «اطلاعات» زیر پاسخ بده و از خودت چیزی اضافه نکن. اگر برای توصیهٔ دقیق به جزئیاتی نیاز داری (مثل تعداد طبقات/واحد، عمق چاه، دبی موردنیاز یا نوع سیال) اول یک سؤال کوتاهِ شفاف‌کننده بپرس و پاسخ نهایی نده. پاسخ کوتاه، دقیق و کاربردی باشد.';
+  const prompt = `${sys}\n\n### اطلاعات:\n${context}\n\n### سؤال کاربر:\n${query}\n\n### پاسخ:`;
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+    });
+    if (res.status === 400 || res.status === 401 || res.status === 403) { setKey(''); return { authError: true }; }
+    if (!res.ok) return { error: `ارتباط با Gemini ناموفق بود (کد ${res.status}). کمی بعد دوباره امتحان کن.` };
+    const data = await res.json();
+    const txt = (data && data.candidates && data.candidates[0] && data.candidates[0].content
+      && data.candidates[0].content.parts || []).map(p => p.text || '').join('').trim();
+    return { text: txt || 'پاسخی دریافت نشد.' };
+  } catch (e) { return { error: 'ارتباط با Gemini برقرار نشد (اینترنت یا فیلترینگ).' }; }
+}
+function renderGemini(txt) {
+  let h = txt.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  h = h.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  h = h.replace(/\n/g, '<br>');
+  return h;
+}
+
+const RATE_EMOJIS = ['😡','😐','🙂','😍'];
+
+const BOT_ICON = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.4643 2.09445H12.3214V7.15804H11.4643V2.09445Z" fill="#96A1B7"/><path d="M8.30357 13.5426C9.33911 13.5426 10.1786 14.3804 10.1786 15.4139C10.1786 16.4474 9.33911 17.2852 8.30357 17.2852C7.26804 17.2852 6.42857 16.4474 6.42857 15.4139C6.42857 14.3804 7.26804 13.5426 8.30357 13.5426Z" fill="#3446E6"/><path d="M15.75 13.5426C16.7559 13.5426 17.5714 14.3804 17.5714 15.4139C17.5714 16.4474 16.7559 17.2852 15.75 17.2852C14.7441 17.2852 13.9286 16.4474 13.9286 15.4139C13.9286 14.3804 14.7441 13.5426 15.75 13.5426Z" fill="#3446E6"/><path fill-rule="evenodd" clip-rule="evenodd" d="M17.4643 6.82781C21.0739 6.82781 24 9.83411 24 13.5426V17.2852L23.9995 17.372C23.9546 21.0116 21.0913 23.9534 17.5487 23.9995L17.4643 24H6.53571L6.45128 23.9995C2.88062 23.953 0 20.9647 0 17.2852V13.5426C1.93303e-07 9.83411 2.92614 6.82781 6.53571 6.82781H17.4643ZM6.53571 9.68984C4.46465 9.68984 2.78571 11.4148 2.78571 13.5426V17.2852C2.78571 19.413 4.46465 21.138 6.53571 21.138H17.4643C19.5354 21.138 21.2143 19.413 21.2143 17.2852V13.5426C21.2143 11.4148 19.5354 9.68984 17.4643 9.68984H6.53571Z" fill="#3446E6"/><path d="M13.2159 1.30909C13.2159 2.03208 12.6478 2.61818 11.9471 2.61818C11.2464 2.61818 10.6784 2.03208 10.6784 1.30909C10.6784 0.5861 11.2464 0 11.9471 0C12.6478 0 13.2159 0.5861 13.2159 1.30909Z" fill="#3446E4"/></svg>`;
+/* همهٔ فلش‌ها به سمت چپ */
+const CHEV = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`;
+const SEND_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>`;
+/* آیکن ربات هدر = همان آیکن داخل چت */
+document.getElementById('headerLogo').innerHTML = BOT_ICON;
+
+/* ═══ HELPERS ═══ */
+function scrollDown() { setTimeout(() => chat.scrollTop = chat.scrollHeight, 60); }
+
+function botMsg(html) {
+  return new Promise(r => {
+    const row = document.createElement('div');
+    row.className = 'bot-row';
+    row.innerHTML = `<div class="bot-avatar">${BOT_ICON}</div><div class="bubble-bot">${html}</div>`;
+    chat.appendChild(row); scrollDown(); r();
+  });
+}
+function userMsg(html) {
+  const row = document.createElement('div');
+  row.className = 'user-row';
+  row.innerHTML = `<div class="bubble-user">${html}</div>`;
+  chat.appendChild(row); scrollDown();
+}
+function typing() {
+  return new Promise(r => {
+    const id = 'tp'+(++typingN);
+    const row = document.createElement('div');
+    row.className = 'bot-row'; row.id = id;
+    row.innerHTML = `<div class="bot-avatar">${BOT_ICON}</div><div class="bubble-bot"><div class="typing"><span></span><span></span><span></span></div></div>`;
+    chat.appendChild(row); scrollDown();
+    setTimeout(() => { const t=document.getElementById(id); if(t)t.remove(); r(); }, 750);
+  });
+}
+function makeBlock() {
+  if (activeBlock) {
+    const b = activeBlock.querySelector('.back-btn');
+    if (b) b.remove();
+    activeBlock.classList.add('locked');
+  }
+  const block = document.createElement('div');
+  block.className = 'opts-block';
+  const list = document.createElement('div');
+  list.className = 'opts-list';
+  block._list = list;
+  block.appendChild(list);
+  chat.appendChild(block);
+  activeBlock = block;
+  scrollDown();
+  return block;
+}
+function addOpt(block, icon, label, cb) {
+  const btn = document.createElement('button');
+  btn.className = 'opt-btn';
+  const ic = icon ? `<span class="opt-icon">${icon}</span>` : '';
+  btn.innerHTML = `<span class="opt-right">${ic}<span class="opt-label">${label}</span></span><span class="chev">${CHEV}</span>`;
+  btn.onclick = () => {
+    if (busy) return; busy = true;
+    block.remove(); activeBlock = null;
+    Promise.resolve(cb()).finally(() => busy = false);
+  };
+  block._list.appendChild(btn);
+}
+function addBack(block, cb) {
+  const btn = document.createElement('button');
+  btn.className = 'back-btn';
+  btn.innerHTML = '<span>بازگشت</span>' + CHEV;
+  btn.onclick = () => {
+    if (busy) return; busy = true;
+    let prev = block.previousElementSibling;
+    if (prev && prev.classList.contains('bot-row')) prev.remove();
+    block.remove(); activeBlock = null;
+    Promise.resolve(cb()).finally(() => busy = false);
+  };
+  block.appendChild(btn);
+}
+
+/* Sticky composer at the bottom of the frame */
+const askInp = document.getElementById('askInp');
+const askSend = document.getElementById('askSend');
+function composerSend() {
+  const v = askInp.value.trim();
+  if (!v || busy) return;
+  askInp.value = '';
+  askSend.classList.remove('show');
+  busy = true;
+  // Lock the currently open menu (if any) so the flow stays consistent
+  if (activeBlock) {
+    const bk = activeBlock.querySelector('.back-btn');
+    if (bk) bk.remove();
+    activeBlock.classList.add('locked');
+    activeBlock = null;
+  }
+  Promise.resolve(handleFree(v)).finally(() => busy = false);
+}
+askSend.onclick = composerSend;
+askInp.addEventListener('keydown', e => { if (e.key === 'Enter') composerSend(); });
+askInp.addEventListener('input', () => { askSend.classList.toggle('show', askInp.value.trim().length > 0); });
+
+/* Product recommendation carousel */
+function showProducts(ids) {
+  if (!ids || !ids.length) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'opts-block';
+  wrap.style.paddingRight = 'calc(var(--avatar-size) + 8px)';
+  const cards = ids.map(id => {
+    const p = PRODUCTS[id];
+    return `<div class="pcard">
+      <div class="pname">${p.name}</div>
+      <div class="pprice">از ${p.price.toLocaleString('fa-IR')} تومان</div>
+      <div class="pdesc">${p.desc}</div>
+      <a class="buy" href="${p.url}" target="_blank" rel="noopener">🛒 مشاهده در فروشگاه‌ها</a>
+    </div>`;
+  }).join('');
+  wrap.innerHTML = `<div class="rec-title">🛍️ محصولات پیشنهادی</div><div class="carousel">${cards}</div>`;
+  chat.appendChild(wrap); scrollDown();
+}
+
+/* ═══ Start a new conversation while keeping history ═══ */
+function startNew() {
+  if (busy) return;
+  if (activeBlock) { activeBlock.remove(); activeBlock = null; }
+  if (chat.children.length) {
+    const divider = document.createElement('div');
+    divider.className = 'chat-divider';
+    divider.innerHTML = '<span>گفت‌وگوی جدید</span>';
+    chat.appendChild(divider);
+  }
+  s0();
+}
+
+/* ═══ STEP 0: greeting + category menu ═══ */
+async function s0() {
+  await botMsg('سلام! 👋 به پشتیبانی فروش پمپ و الکتروپمپ خوش اومدی.<br>در مورد کدام موضوع راهنمایی می‌خوای؟');
+  const b = makeBlock();
+  CATS.forEach(c => addOpt(b, c.icon, c.label, () => { userMsg(c.label); sCat(c.id); }));
+}
+
+/* ═══ STEP: category → popular questions ═══ */
+async function sCat(catId) {
+  const cat = CATS.find(c => c.id === catId);
+  await typing();
+  await botMsg(`یکی از سؤال‌های پرتکرار دستهٔ «<b>${cat.label}</b>» رو انتخاب کن، یا سؤال خودت رو بنویس:`);
+  const b = makeBlock();
+  cat.qs.forEach((item, i) => addOpt(b, '', item.q, () => { userMsg(item.q); sAnswer(catId, i); }));
+  addBack(b, s0);
+}
+
+/* ═══ STEP: answer + products + follow-up ═══ */
+async function sAnswer(catId, qIndex) {
+  const cat = CATS.find(c => c.id === catId);
+  const item = cat.qs[qIndex];
+  // اگر سؤال نیاز به شفاف‌سازی دارد، اول سؤال شفاف‌کننده بپرس
+  if (item.clarify) return askClarify(catId, qIndex);
+  await typing();
+  await botMsg(item.a);
+  showProducts(pickProducts(catId, item.p));
+  await followUp(catId);
+}
+
+/* سؤال شفاف‌کننده پیش از پاسخ نهایی */
+async function askClarify(catId, qIndex) {
+  const cat = CATS.find(c => c.id === catId);
+  const item = cat.qs[qIndex];
+  await typing();
+  await botMsg(item.clarify.prompt);
+  const b = makeBlock();
+  item.clarify.options.forEach((op, i) =>
+    addOpt(b, '', op.label, () => { userMsg(op.label); finishClarify(catId, qIndex, i); }));
+  addBack(b, () => sCat(catId));
+}
+async function finishClarify(catId, qIndex, optIndex) {
+  const cat = CATS.find(c => c.id === catId);
+  const item = cat.qs[qIndex];
+  const op = item.clarify.options[optIndex];
+  await typing();
+  await botMsg(op.a || item.a);
+  showProducts(pickProducts(catId, op.p || item.p));
+  await followUp(catId);
+}
+
+async function followUp(catId) {
+  const b = makeBlock();
+  addOpt(b, '↩️', 'سؤال دیگری از همین دسته', () => sCat(catId));
+  addOpt(b, '📂', 'انتخاب دستهٔ دیگر', () => s0());
+  addOpt(b, '✅', 'تمام شد، ممنون', () => endChat());
+}
+
+/* تشخیص دستهٔ مرتبط برای پیشنهاد محصول */
+function bestCategory(text) {
+  const norm = s => (s || '').replace(/[ي]/g,'ی').replace(/[ك]/g,'ک').replace(/[‌]/g,' ').toLowerCase();
+  const words = norm(text).split(/\s+/).filter(w => w.length > 2);
+  let bestCat = null, bestScore = 0;
+  CATS.forEach(c => {
+    const hay = norm(c.label + ' ' + c.qs.map(q => q.q + ' ' + q.a).join(' '));
+    let s = 0; words.forEach(w => { if (hay.includes(w)) s++; });
+    if (s > bestScore) { bestScore = s; bestCat = c.id; }
+  });
+  return bestScore >= 1 ? bestCat : null;
+}
+
+/* سؤال متنی → پاسخ هوشمند با Gemini روی پایگاه دانش (RAG) */
+function handleFree(text) { userMsg(text); return answerFree(text); }
+async function answerFree(text) {
+  if (!getKey()) return askForKey(text);
+  await typing();
+  const chunks = retrieve(text);
+  const r = await callGemini(text, chunks);
+  if (r.needKey) return askForKey(text);
+  if (r.authError) { await botMsg('کلید Gemini نامعتبر بود. لطفاً دوباره واردش کن.'); return keyInputBlock(text); }
+  if (r.error) { await botMsg(r.error); return keyRetryBlock(text); }
+  await botMsg(renderGemini(r.text));
+  const cat = bestCategory(text) || 'home_pressure';
+  showProducts(pickProducts(cat, []));
+  await followUp(cat);
+}
+
+/* گرفتن کلید Gemini از کاربر (فقط در مرورگر ذخیره می‌شود) */
+async function askForKey(pendingText) {
+  await typing();
+  await botMsg('برای پاسخ هوشمند با مدل <b>Gemini</b> یک کلید API رایگان لازم است. از <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a> کلید بگیر و اینجا وارد کن.<br><span style="font-size:11.5px;color:#64748b">کلید فقط در مرورگر خودت ذخیره می‌شود و در کد سایت قرار نمی‌گیرد.</span>');
+  keyInputBlock(pendingText);
+}
+function keyInputBlock(pendingText) {
+  const b = makeBlock();
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'padding:10px;display:flex;gap:8px;align-items:center;';
+  const inp = document.createElement('input');
+  inp.className = 'ask-inp'; inp.style.paddingLeft = '16px'; inp.type = 'password'; inp.placeholder = 'کلید Gemini را بچسبان';
+  const btn = document.createElement('button');
+  btn.className = 'feedback-btn-primary'; btn.style.cssText = 'flex:0 0 auto;width:auto;padding:10px 16px;'; btn.textContent = 'ذخیره و ادامه';
+  const fire = () => {
+    const k = inp.value.trim();
+    if (!k || busy) return;
+    setKey(k); busy = true; b.remove(); activeBlock = null;
+    Promise.resolve(answerFree(pendingText)).finally(() => busy = false);
+  };
+  btn.onclick = fire;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') fire(); });
+  wrap.appendChild(inp); wrap.appendChild(btn);
+  b._list.appendChild(wrap);
+  addBack(b, s0);
+  setTimeout(() => inp.focus(), 100);
+}
+function keyRetryBlock(pendingText) {
+  const b = makeBlock();
+  addOpt(b, '🔁', 'تلاش دوباره', () => answerFree(pendingText));
+  addOpt(b, '📂', 'انتخاب از منوی دسته‌ها', () => s0());
+}
+
+/* ═══ END: feedback + restart ═══ */
+async function endChat() {
+  await typing();
+  await botMsg('خوشحال شدم کمکت کردم 🙏 اگر سؤال دیگه‌ای داشتی، در خدمتم.');
+  const b = document.createElement('div');
+  b.className = 'opts-block feedback-block';
+  activeBlock = b;
+
+  const hr = document.createElement('hr'); hr.className = 'feedback-divider'; b.appendChild(hr);
+
+  const card = document.createElement('div');
+  card.className = 'feedback-card';
+  card.innerHTML = `<div class="feedback-label">تجربه‌ات از این گفت‌وگو چطور بود؟</div><div class="feedback-emojis" id="rate"></div>`;
+  b.appendChild(card);
+  const rate = card.querySelector('#rate');
+  RATE_EMOJIS.forEach(em => {
+    const btn = document.createElement('button');
+    btn.className = 'feedback-emoji-btn'; btn.textContent = em;
+    btn.onclick = () => {
+      card.innerHTML = `<div class="feedback-success-wrapper"><span class="feedback-success-text">از بازخوردت ممنونیم 🙏</span>
+        <span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg></span></div>`;
+    };
+    rate.appendChild(btn);
+  });
+
+  const row = document.createElement('div'); row.className = 'feedback-action-row';
+  const bNew = document.createElement('button'); bNew.className = 'feedback-btn-primary'; bNew.textContent = 'گفت‌وگوی جدید'; bNew.onclick = () => startNew();
+  const bEnd = document.createElement('button'); bEnd.className = 'feedback-btn-dark'; bEnd.textContent = 'پایان'; bEnd.onclick = () => startNew();
+  row.appendChild(bEnd); row.appendChild(bNew);
+  b.appendChild(row);
+  chat.appendChild(b); scrollDown();
+}
+
+/* boot */
+s0();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+streamlit>=1.30
+rank-bm25>=0.2.2
+numpy>=1.24
+python-dotenv>=1.0
+# برای مدل Gemini (اختیاری — فقط اگر LLM_PROVIDER=gemini):
+google-generativeai>=0.8.0
+# برای مدل محلی Ollama (اختیاری):
+requests>=2.31
