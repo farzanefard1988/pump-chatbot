@@ -783,20 +783,7 @@ function newBotBubble() {
 /* سؤال متنی: اول مسیر سریع/کش، بعد گفت‌وگوی چندمرحله‌ایِ استریمیِ Gemini */
 function handleFree(text) { userMsg(text); return answerFree(text); }
 async function answerFree(text) {
-  // ۱) مسیر سریعِ بدون مدل (فقط برای سؤال تازه)
-  if (geminiHistory.length === 0) {
-    const fm = fastMatch(text);
-    if (fm) {
-      const bubble = newBotBubble().querySelector('.bubble-bot');
-      bubble.innerHTML = fm.item.a;           // پاسخ آمادهٔ HTML، فوری و با فرمت درست
-      scrollDown();
-      showProducts(pickProducts(fm.catId, fm.item.p));
-      await followUp(fm.catId);
-      return;
-    }
-  }
-
-  // ۲) مسیر مدل (با کش)
+  // همیشه از مسیر مدل (با کش) می‌رویم تا سؤال‌های شفاف‌کننده مثل قبل پرسیده شوند
   geminiHistory.push({ role: 'user', text });
   const bubble = newBotBubble().querySelector('.bubble-bot');
   const context = retrieve(text).map(c => `• ${c.title}: ${c.text}`).join('\n')
