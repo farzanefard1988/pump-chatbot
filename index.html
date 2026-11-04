@@ -647,6 +647,15 @@ function typing() {
     setTimeout(() => { const t=document.getElementById(id); if(t)t.remove(); r(); }, 750);
   });
 }
+/* بلوک منوی فعلی را قفل می‌کند بدون ساختن بلوک جدید (برای حالت فقط-چیپس) */
+function lockActive() {
+  if (activeBlock) {
+    const b = activeBlock.querySelector('.back-btn');
+    if (b) b.remove();
+    activeBlock.classList.add('locked');
+    activeBlock = null;
+  }
+}
 function makeBlock() {
   if (activeBlock) {
     const b = activeBlock.querySelector('.back-btn');
@@ -784,12 +793,21 @@ async function askClarify(catId, qIndex) {
   const item = cat.qs[qIndex];
   await typing();
   await botMsg(item.clarify.prompt);
-  const b = makeBlock();
-  item.clarify.options.forEach((op, i) =>
-    addOpt(b, '', op.label, () => { userMsg(op.label); finishClarify(catId, qIndex, i); }));
-  addBack(b, () => sCat(catId));
-  // چیپس‌ها آینهٔ گزینه‌های شفاف‌سازی
-  setChips(item.clarify.options.map((op, i) => ({ label: op.label, fn: () => { userMsg(op.label); finishClarify(catId, qIndex, i); } })));
+  const opts = item.clarify.options.map((op, i) =>
+    ({ label: op.label, fn: () => { userMsg(op.label); finishClarify(catId, qIndex, i); } }));
+  const allShort = opts.every(o => o.label.length <= 24);
+  if (allShort) {
+    // گزینه‌ها کوتاه‌اند → منوی داخل چت را حذف کن؛ فقط چیپس
+    lockActive();
+    setChips(opts.concat([{ label: 'بازگشت ‹', fn: () => sCat(catId) }]));
+  } else {
+    // گزینه‌های بلند → منو بماند (و چیپس هم آینه‌اش)
+    const b = makeBlock();
+    item.clarify.options.forEach((op, i) =>
+      addOpt(b, '', op.label, () => { userMsg(op.label); finishClarify(catId, qIndex, i); }));
+    addBack(b, () => sCat(catId));
+    setChips(opts);
+  }
 }
 async function finishClarify(catId, qIndex, optIndex) {
   const cat = CATS.find(c => c.id === catId);
