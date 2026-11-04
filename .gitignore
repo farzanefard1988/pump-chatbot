@@ -6,6 +6,7 @@ __pycache__/
 # متغیرهای محیطی و کلیدها (هرگز commit نشوند)
 .env
 .env.local
+.streamlit/secrets.toml
 
 # لاگ‌ها و فایل‌های موقت
 *.log
