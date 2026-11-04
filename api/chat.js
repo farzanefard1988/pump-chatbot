@@ -17,32 +17,12 @@ const PREFERRED = [
   'gemini-flash-latest',
 ];
 
-let _models = null;
-async function listModels(key) {
-  if (_models) return _models;
-  try {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}`);
-    if (!r.ok) return [];
-    const d = await r.json();
-    _models = (d.models || [])
-      .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
-      .map((m) => (m.name || '').replace(/^models\//, ''))
-      .filter(Boolean);
-    return _models;
-  } catch (e) {
-    return [];
-  }
-}
-
-async function candidateModels(key) {
-  const listed = await listModels(key);
+// برای سرعت، بدون ListModels؛ مستقیم از مدل‌های ترجیحیِ کارآمد استفاده می‌کنیم.
+// اگر یکی ۴۰۴/۵۰۳ بدهد، در حلقهٔ اصلی سراغ بعدی می‌رویم.
+function candidateModels() {
   const out = [];
   if (process.env.GEMINI_MODEL) out.push(process.env.GEMINI_MODEL);
-  for (const p of PREFERRED) if (listed.includes(p) && !out.includes(p)) out.push(p);
-  for (const m of listed) {
-    if (m.includes('flash') && !m.includes('image') && !m.includes('tts') && !m.includes('vision') && !out.includes(m)) out.push(m);
-  }
-  if (!out.length && listed.length) out.push(listed[0]);
+  for (const p of PREFERRED) if (!out.includes(p)) out.push(p);
   return out;
 }
 
@@ -65,11 +45,7 @@ export default async function handler(req, res) {
     if (!query) { res.status(400).json({ error: 'سؤال خالی است.' }); return; }
 
     const prompt = `${SYSTEM_PROMPT}\n\n### اطلاعات:\n${context || '(اطلاعاتی یافت نشد)'}\n\n### سؤال کاربر:\n${query}\n\n### پاسخ:`;
-    const cands = await candidateModels(key);
-    if (!cands.length) {
-      res.status(502).json({ error: 'هیچ مدل Gemini در دسترس این کلید نیست.' });
-      return;
-    }
+    const cands = candidateModels();
 
     let lastStatus = 0;
     for (const model of cands.slice(0, 5)) {
