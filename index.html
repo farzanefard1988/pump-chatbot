@@ -287,7 +287,6 @@
     </button>
   </div>
   <div class="chat-area" id="chatArea"></div>
-  <div class="chips-bar" id="chipsBar"></div>
   <div class="composer">
     <button class="home-btn" id="homeBtn" title="منوی اصلی">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
@@ -804,21 +803,10 @@ async function askClarify(catId, qIndex) {
   const item = cat.qs[qIndex];
   await typing();
   await botMsg(item.clarify.prompt);
-  const opts = item.clarify.options.map((op, i) =>
-    ({ label: op.label, fn: () => { userMsg(op.label); finishClarify(catId, qIndex, i); } }));
-  const allShort = opts.every(o => o.label.length <= 24);
-  if (allShort) {
-    // گزینه‌ها کوتاه‌اند → منوی داخل چت را حذف کن؛ فقط چیپس
-    lockActive();
-    setChips(opts.concat([{ label: 'بازگشت ‹', fn: () => sCat(catId) }]));
-  } else {
-    // گزینه‌های بلند → منو بماند (و چیپس هم آینه‌اش)
-    const b = makeBlock();
-    item.clarify.options.forEach((op, i) =>
-      addOpt(b, '', op.label, () => { userMsg(op.label); finishClarify(catId, qIndex, i); }));
-    addBack(b, () => sCat(catId));
-    setChips(opts);
-  }
+  const b = makeBlock();
+  item.clarify.options.forEach((op, i) =>
+    addOpt(b, '', op.label, () => { userMsg(op.label); finishClarify(catId, qIndex, i); }));
+  addBack(b, () => sCat(catId));
 }
 async function finishClarify(catId, qIndex, optIndex) {
   const cat = CATS.find(c => c.id === catId);
