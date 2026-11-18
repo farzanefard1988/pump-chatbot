@@ -258,7 +258,7 @@
     border: none; background: none; cursor: pointer; padding: 2px; border-radius: 50%;
     line-height: 0; transition: transform 0.15s, opacity 0.15s;
   }
-  .survey-face svg { display: block; width: 40px; height: 40px; }
+  .survey-face svg { display: block; width: 30px; height: 30px; }
   .survey-face:hover { transform: scale(1.14); }
   .survey-face.sel { transform: scale(1.14); box-shadow: 0 0 0 3px var(--primary-light); }
   .survey-item.dim .survey-face { opacity: 0.4; }
@@ -1064,6 +1064,25 @@ const SURVEY = [
   { label: 'خیلی زیاد', color: '#22c55e', mouth: 'M7.5 13.5 Q12 18.5 16.5 13.5', q: 'کدام بخش این پاسخ برایتان رضایت‌بخش بود؟',
     opts: ['طی کردن مراحل آسان بود', 'راهنمایی‌ها واضح بود', 'فرایند سریع و بدون خطا بود', 'گزینهٔ مناسب نیازم را پیدا کردم', 'دلایل دیگر'] },
 ];
+/* ذخیرهٔ بازخورد: همیشه در مرورگر، و در صورت تعیین آدرس، ارسال به بک‌اند */
+const FEEDBACK_ENDPOINT = '';   // آدرس ذخیره‌سازی بازخورد (API/Apps Script)؛ خالی = فقط لوکال
+function saveFeedback(rec) {
+  try {
+    const arr = JSON.parse(localStorage.getItem('pump_feedback') || '[]');
+    arr.push(rec);
+    localStorage.setItem('pump_feedback', JSON.stringify(arr));
+  } catch (e) {}
+  if (FEEDBACK_ENDPOINT) {
+    try {
+      fetch(FEEDBACK_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rec),
+        keepalive: true,
+      }).catch(() => {});
+    } catch (e) {}
+  }
+}
 function faceSVG(f) {
   return `<svg viewBox="0 0 24 24" aria-hidden="true">
     <circle cx="12" cy="12" r="11" fill="${f.color}"/>
@@ -1081,6 +1100,14 @@ function renderSurveyDetail(detail, f, onSubmit) {
     '</div>' +
     '<button class="survey-submit" type="button">ثبت بازخورد</button>';
   detail.querySelector('.survey-submit').onclick = () => {
+    const reasons = Array.from(detail.querySelectorAll('.survey-opt input:checked')).map(c => c.value);
+    saveFeedback({
+      ts: new Date().toISOString(),
+      ratingValue: SURVEY.indexOf(f) + 1,
+      rating: f.label,
+      reasons: reasons,
+      url: location.href,
+    });
     detail.innerHTML = '<hr class="survey-divider"><div class="survey-thanks">ممنون از بازخوردت 🙏</div>';
     onSubmit();
     scrollDown();
