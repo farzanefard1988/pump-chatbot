@@ -823,7 +823,7 @@ function showProducts(ids) {
       <div class="pname">${p.name}</div>
       <div class="pprice">از ${p.price.toLocaleString('fa-IR')} تومان</div>
       <div class="pdesc">${p.desc}</div>
-      <a class="buy" href="${p.url}" target="_blank" rel="noopener">🛒 مشاهده در فروشگاه‌ها</a>
+      <a class="buy" href="${p.url}" target="_blank" rel="noopener">مشاهده در فروشگاه‌ها</a>
     </div>`;
   }).join('');
   wrap.innerHTML = `<div class="rec-title">🛍️ محصولات پیشنهادی</div><div class="carousel">${cards}</div>`;
@@ -1048,6 +1048,27 @@ async function followUp(catId) {
   // نظرسنجی سریع، زیر محصولات پیشنهادی (بدون بج‌های پایین)
   clearFollow();
   showSurvey();
+  showEndActions();
+}
+/* دکمه‌های پایانی زیر نظرسنجی: درخواست جدید / بستن */
+function showEndActions() {
+  const block = document.createElement('div');
+  block.className = 'opts-block survey-block';
+  const row = document.createElement('div');
+  row.className = 'feedback-action-row';
+  const bNew = document.createElement('button');
+  bNew.className = 'feedback-btn-primary';
+  bNew.textContent = 'درخواست جدید';
+  bNew.onclick = () => { if (!busy) startNew(); };
+  const bClose = document.createElement('button');
+  bClose.className = 'feedback-btn-dark';
+  bClose.textContent = 'بستن';
+  bClose.onclick = () => { block.remove(); };
+  row.appendChild(bNew);
+  row.appendChild(bClose);
+  block.appendChild(row);
+  chat.appendChild(block);
+  scrollDown();
 }
 
 /* نظرسنجی رضایت: ۵ چهرهٔ رنگی + بازخورد شرطی زیر محصولات */
