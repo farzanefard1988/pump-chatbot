@@ -1089,10 +1089,8 @@ const SURVEY = [
   { label: 'خیلی زیاد', color: '#22c55e', mouth: 'M7.5 13.5 Q12 18.5 16.5 13.5', q: 'کدام بخش این پاسخ برایتان رضایت‌بخش بود؟',
     opts: ['طی کردن مراحل آسان بود', 'راهنمایی‌ها واضح بود', 'فرایند سریع و بدون خطا بود', 'گزینهٔ مناسب نیازم را پیدا کردم', 'دلایل دیگر'] },
 ];
-/* ذخیرهٔ بازخورد در Supabase (+ نسخهٔ پشتیبانِ محلی) */
-const SUPABASE_URL = '';        // مثل: https://xxxxxxxx.supabase.co
-const SUPABASE_ANON_KEY = '';   // کلید anon (public) پروژه
-const SUPABASE_TABLE = 'feedback';
+/* ذخیرهٔ بازخورد در Google Sheet (از طریق Apps Script Web App) + پشتیبانِ محلی */
+const SHEET_ENDPOINT = '';   // آدرس Web App اسکریپت گوگل‌شیت (Deploy → Web app → URL)
 function saveFeedback(rec) {
   // پشتیبانِ محلی (همیشه ذخیره می‌شود تا داده از دست نرود)
   try {
@@ -1100,23 +1098,13 @@ function saveFeedback(rec) {
     arr.push(rec);
     localStorage.setItem('pump_feedback', JSON.stringify(arr));
   } catch (e) {}
-  // ارسال به دیتابیس Supabase در صورت تنظیم‌بودن آدرس و کلید
-  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+  // ارسال به گوگل‌شیت در صورت تنظیم‌بودن آدرس (text/plain برای پرهیز از preflight)
+  if (SHEET_ENDPOINT) {
     try {
-      fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
+      fetch(SHEET_ENDPOINT, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          Prefer: 'return=minimal',
-        },
-        body: JSON.stringify({
-          rating_value: rec.ratingValue,
-          rating: rec.rating,
-          reasons: rec.reasons,
-          url: rec.url,
-        }),
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(rec),
         keepalive: true,
       }).catch(() => {});
     } catch (e) {}
