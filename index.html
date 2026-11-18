@@ -1064,20 +1064,34 @@ const SURVEY = [
   { label: 'خیلی زیاد', color: '#22c55e', mouth: 'M7.5 13.5 Q12 18.5 16.5 13.5', q: 'کدام بخش این پاسخ برایتان رضایت‌بخش بود؟',
     opts: ['طی کردن مراحل آسان بود', 'راهنمایی‌ها واضح بود', 'فرایند سریع و بدون خطا بود', 'گزینهٔ مناسب نیازم را پیدا کردم', 'دلایل دیگر'] },
 ];
-/* ذخیرهٔ بازخورد: همیشه در مرورگر، و در صورت تعیین آدرس، ارسال به بک‌اند */
-const FEEDBACK_ENDPOINT = '';   // آدرس ذخیره‌سازی بازخورد (API/Apps Script)؛ خالی = فقط لوکال
+/* ذخیرهٔ بازخورد در Supabase (+ نسخهٔ پشتیبانِ محلی) */
+const SUPABASE_URL = '';        // مثل: https://xxxxxxxx.supabase.co
+const SUPABASE_ANON_KEY = '';   // کلید anon (public) پروژه
+const SUPABASE_TABLE = 'feedback';
 function saveFeedback(rec) {
+  // پشتیبانِ محلی (همیشه ذخیره می‌شود تا داده از دست نرود)
   try {
     const arr = JSON.parse(localStorage.getItem('pump_feedback') || '[]');
     arr.push(rec);
     localStorage.setItem('pump_feedback', JSON.stringify(arr));
   } catch (e) {}
-  if (FEEDBACK_ENDPOINT) {
+  // ارسال به دیتابیس Supabase در صورت تنظیم‌بودن آدرس و کلید
+  if (SUPABASE_URL && SUPABASE_ANON_KEY) {
     try {
-      fetch(FEEDBACK_ENDPOINT, {
+      fetch(`${SUPABASE_URL}/rest/v1/${SUPABASE_TABLE}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(rec),
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({
+          rating_value: rec.ratingValue,
+          rating: rec.rating,
+          reasons: rec.reasons,
+          url: rec.url,
+        }),
         keepalive: true,
       }).catch(() => {});
     } catch (e) {}
