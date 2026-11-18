@@ -16,3 +16,5 @@ streamlit.log
 # تنظیمات محلی ادیتور/اجرا
 .claude/
 .DS_Store
+.vercel
+.env*
