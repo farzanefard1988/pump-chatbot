@@ -316,6 +316,10 @@ const PRODUCTS = {
   P006: { name:'پمپ لجن‌کش فاضلابی سه‌فاز', price:13500000, url:'https://torob.com/search/?query=پمپ لجن کش فاضلاب سه فاز', desc:'پروانهٔ باز، عبور ذرات درشت و لجن؛ چاه فاضلاب و صنعت.' },
   P007: { name:'الکتروپمپ گریز از مرکز صنعتی', price:29000000, url:'https://torob.com/search/?query=پمپ گریز از مرکز صنعتی سه فاز', desc:'سه‌فاز ۵٫۵ اسب، انتقال سیال با دبی بالا در خط تولید.' },
   P008: { name:'پمپ شناور چاه عمیق ۶ اینچ', price:58000000, url:'https://torob.com/search/?query=پمپ شناور چاه عمیق 6 اینچ', desc:'سابمرسیبل سه‌فاز؛ کشاورزی و تأمین آب از چاه عمیق.' },
+  P009: { name:'پمپ شناور ۴ اینچ ۱ اسب پدرولا', price:19500000, url:'https://torob.com/search/?query=پمپ شناور 4 اینچ پدرولا', desc:'سابمرسیبل ۴ اینچ، دبی کم؛ چاه کم‌عمق و باغ کوچک.' },
+  P010: { name:'پمپ شناور ۶ اینچ ۵ اسب', price:58000000, url:'https://torob.com/search/?query=پمپ شناور 6 اینچ 5 اسب', desc:'سابمرسیبل ۶ اینچ، هد و دبی متوسط؛ چاه کشاورزی استاندارد.' },
+  P011: { name:'پمپ شناور ۶ اینچ هد بالا (طبقات زیاد)', price:76000000, url:'https://torob.com/search/?query=پمپ شناور 6 اینچ هد بالا', desc:'سابمرسیبل طبقاتی، هد بالا برای چاه خیلی عمیق یا مسیر طولانی.' },
+  P012: { name:'پمپ شناور ۸ اینچ پرآب‌دهی', price:120000000, url:'https://torob.com/search/?query=پمپ شناور 8 اینچ کشاورزی', desc:'سابمرسیبل ۸ اینچ، دبی بالا؛ کشاورزی وسیع و شبکهٔ آبیاری.' },
 };
 
 const CATS = [
@@ -378,6 +382,7 @@ const CATS = [
     { q:'برای آبیاری تحت فشار چه پمپی خوبه؟',
       a:'آبیاری تحت فشار به هد بالا نیاز دارد؛ <b>پمپ طبقاتی عمودی سه‌فاز</b> گزینهٔ مناسبی است.', p:['P004'] },
   ]},
+  { id:'wellfinder', icon:'🧮', label:'پمپ‌یاب چاه عمیق (محاسبه)', wizard:true, qs:[] },
   { id:'industrial', icon:'🏭', label:'پمپ صنعتی', qs:[
     { q:'برای انتقال سیال در خط تولید چه پمپی مناسبه؟',
       a:'<b>الکتروپمپ گریز از مرکز سه‌فاز</b> برای انتقال آب/سیال با دبی بالا و هد متوسط در خطوط صنعتی مناسب است.', p:['P007'] },
@@ -410,6 +415,7 @@ const CATPRODUCTS = {
   booster:       ['P003','P004','P001'],
   drain:         ['P005','P006','P008'],
   well:          ['P008','P004','P002'],
+  wellfinder:    ['P010','P008','P011'],
   industrial:    ['P007','P004','P003'],
   troubleshoot:  ['P001','P003','P007'],
 };
@@ -439,6 +445,10 @@ const CATSOURCES = {
     { t:'فامکو: نحوهٔ انتخاب پمپ شناور', u:'https://www.famcocorp.com/article/2288' },
     { t:'Bob Vila: How to Choose a Well Pump', u:'https://www.bobvila.com/articles/how-to-choose-a-well-pump' },
   ],
+  wellfinder: [
+    { t:'فامکو: نحوهٔ انتخاب پمپ شناور', u:'https://www.famcocorp.com/article/2288' },
+    { t:'راهنمای محاسبهٔ هد و افت اصطکاک', u:'https://www.famcocorp.com/article/2288' },
+  ],
   industrial: [
     { t:'RPS: تکفاز یا سه‌فاز', u:'https://rpswaterpumps.com/blogs/water-pump-faqs/which-pump-is-better-single-phase-or-three-phase' },
     { t:'Pumps & Systems: Centrifugal Basics', u:'https://www.pumpsandsystems.com/suction-piping-npsh-cavitation' },
@@ -467,6 +477,7 @@ const CAT_SHORT = {
   booster: 'بوستر',
   drain: 'کفکش/لجن‌کش',
   well: 'چاه عمیق',
+  wellfinder: 'پمپ‌یاب',
   industrial: 'صنعتی',
   troubleshoot: 'عیب‌یابی',
 };
@@ -750,6 +761,145 @@ function showProducts(ids) {
   chat.appendChild(wrap); scrollDown();
 }
 
+/* ═══ پمپ‌یاب چاه عمیق: محاسبهٔ ستون آب کل (TDH) و انتخاب از جدول ═══ */
+/* هر پمپ: محدودهٔ دبی (لیتر/ثانیه)، محدودهٔ هد و بازهٔ بهترین راندمان (متر).
+   این‌ها دادهٔ نمونه‌اند؛ در نسخهٔ واقعی از جدول اکسل فروشنده پر می‌شوند. */
+const PUMPS = [
+  { id:'P009', fMin:1,  fMax:5,  hMin:20,  hMax:70,  bMin:35,  bMax:55  },
+  { id:'P010', fMin:4,  fMax:12, hMin:60,  hMax:130, bMin:90,  bMax:120 },
+  { id:'P011', fMin:3,  fMax:9,  hMin:110, hMax:190, bMin:130, bMax:170 },
+  { id:'P012', fMin:10, fMax:25, hMin:30,  hMax:90,  bMin:50,  bMax:70  },
+];
+function selectPump(total, flow) {
+  const inRange = PUMPS.filter(p => total >= p.hMin && total <= p.hMax &&
+    (flow == null || (flow >= p.fMin && flow <= p.fMax)));
+  const best = inRange.filter(p => total >= p.bMin && total <= p.bMax);
+  let cand = best.length ? best : inRange;
+  if (!cand.length) cand = PUMPS.slice();          // هیچ تطبیقی نبود → نزدیک‌ترین هد
+  const center = p => (p.bMin + p.bMax) / 2;
+  cand.sort((a, b) => Math.abs(total - center(a)) - Math.abs(total - center(b)));
+  return cand[0];
+}
+
+/* ترتیب سؤال‌های ویزارد؛ num = ورودی عددی، choice = دکمه */
+const WFIELDS = [
+  { key:'depth',  type:'num',    q:'عمق نصب پمپ در چاه چند متر است؟', ph:'مثلاً ۷۵', unit:'متر' },
+  { key:'horiz',  type:'num',    q:'طول مسیر افقی لوله چند متر است؟ (اگر افقی نداری، ۰)', ph:'مثلاً ۵۰۰', unit:'متر', allowZero:true },
+  { key:'elbows', type:'choice', q:'چند عدد زانویی در مسیر لوله داری؟', options:[
+      { label:'بدون زانویی', val:0 }, { label:'۱ عدد', val:1 }, { label:'۲ عدد', val:2 }, { label:'۳ عدد یا بیشتر', val:3 } ] },
+  { key:'pipe',   type:'choice', q:'جنس لوله چیست؟', options:[
+      { label:'پلی‌اتیلن', val:15 }, { label:'فلزی (گالوانیزه/فولادی)', val:10 } ] },
+  { key:'irrig',  type:'choice', q:'نوع آبیاری یا مصرف چیست؟', options:[
+      { label:'غرقابی / تخلیهٔ آزاد', val:0 }, { label:'آبیاری قطره‌ای (نیاز به فشار)', val:20 } ] },
+  { key:'flow',   type:'num',    q:'دبی (آب‌دهی) موردنیاز چند لیتر بر ثانیه است؟', ph:'مثلاً ۸', unit:'لیتر/ثانیه', unknownOk:true },
+];
+
+let wiz = null;
+function faNum(n) { return Math.round(n).toLocaleString('fa-IR'); }
+
+async function startWizard(catId) {
+  resetGemini();
+  setChips([]);
+  wiz = { catId, i: 0, data: {} };
+  await typing();
+  await botMsg('باشه، با چند سؤال کوتاه بهترین <b>پمپ شناور چاه عمیق</b> رو برات پیدا می‌کنم. 👇');
+  return wizStep();
+}
+async function wizStep() {
+  if (!wiz) return;
+  if (wiz.i >= WFIELDS.length) return wizFinish();
+  const f = WFIELDS[wiz.i];
+  await typing();
+  await botMsg(f.q);
+  if (f.type === 'choice') wizChoice(f); else wizNumber(f);
+}
+function wizChoice(f) {
+  const b = makeBlock();
+  f.options.forEach(op => addOpt(b, '', op.label, () => {
+    userMsg(op.label);
+    wiz.data[f.key] = op.val;
+    wiz.i++;
+    return wizStep();
+  }));
+  addBack(b, s0);
+}
+function wizNumber(f) {
+  const b = makeBlock();
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'padding:10px;display:flex;flex-direction:column;gap:8px;';
+  const rowEl = document.createElement('div');
+  rowEl.style.cssText = 'display:flex;gap:8px;align-items:center;';
+  const inp = document.createElement('input');
+  inp.className = 'ask-inp'; inp.style.paddingLeft = '16px';
+  inp.type = 'number'; inp.inputMode = 'decimal'; inp.min = '0';
+  inp.placeholder = f.ph || 'عدد را وارد کن';
+  const btn = document.createElement('button');
+  btn.className = 'feedback-btn-primary';
+  btn.style.cssText = 'flex:0 0 auto;width:auto;padding:10px 16px;';
+  btn.textContent = 'ادامه';
+  const err = document.createElement('div');
+  err.style.cssText = 'font-size:12px;color:var(--danger);display:none;padding-right:2px;';
+  const fire = () => {
+    const raw = inp.value.trim();
+    const v = parseFloat(raw);
+    if (raw === '' || isNaN(v) || v < 0 || (v === 0 && !f.allowZero)) {
+      err.textContent = 'لطفاً یک عدد معتبر وارد کن' + (f.allowZero ? '.' : ' (بزرگ‌تر از صفر).');
+      err.style.display = 'block';
+      inp.focus();
+      return;
+    }
+    if (busy) return; busy = true;
+    userMsg(faNum(v) + (f.unit ? ' ' + f.unit : ''));
+    wiz.data[f.key] = v;
+    b.remove(); activeBlock = null; wiz.i++;
+    Promise.resolve(wizStep()).finally(() => busy = false);
+  };
+  inp.addEventListener('input', () => { err.style.display = 'none'; });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') fire(); });
+  btn.onclick = fire;
+  rowEl.appendChild(inp); rowEl.appendChild(btn);
+  wrap.appendChild(rowEl); wrap.appendChild(err);
+  b._list.appendChild(wrap);
+  if (f.unknownOk) addOpt(b, '🤷', 'نمی‌دانم', () => {
+    userMsg('نمی‌دانم');
+    wiz.data[f.key] = null;
+    wiz.i++;
+    return wizStep();
+  });
+  addBack(b, s0);
+  setTimeout(() => inp.focus(), 100);
+}
+async function wizFinish() {
+  const d = wiz.data, catId = wiz.catId;
+  const hVert  = d.depth;
+  const hElb   = (d.elbows || 0) * 5;
+  const hHor   = d.horiz > 0 ? Math.ceil(d.horiz / d.pipe) : 0;
+  const hPress = d.irrig || 0;
+  const total  = hVert + hElb + hHor + hPress;
+  const flow   = d.flow;                       // ممکن است null باشد (نمی‌دانم)
+  const pump   = selectPump(total, flow);
+  wiz = null;
+
+  await typing();
+  let html = `بر اساس اطلاعاتت، <b>ستون آب کل موردنیاز ≈ ${faNum(total)} متر</b> است:`;
+  html += '<div style="font-size:12.5px;color:#475569;line-height:2;margin-top:4px">';
+  html += `• ارتفاع عمودی (عمق نصب): ${faNum(hVert)}m<br>`;
+  html += `• افت اتصالات (${faNum(d.elbows || 0)} زانویی): +${faNum(hElb)}m<br>`;
+  html += `• افت افقی (${d.pipe === 15 ? 'پلی‌اتیلن' : 'فلزی'}، ${faNum(d.horiz)}m ÷ ${faNum(d.pipe)}): +${faNum(hHor)}m<br>`;
+  html += `• فشار کاری (${hPress ? 'آبیاری قطره‌ای' : 'غرقابی'}): +${faNum(hPress)}m`;
+  html += '</div>';
+  const isBest = total >= pump.bMin && total <= pump.bMax;
+  const effTxt = isBest ? 'در محدودهٔ <b>بهترین راندمان</b>' : 'در محدودهٔ کاری';
+  html += `پیشنهاد: <b>${PRODUCTS[pump.id].name}</b> — با دبی ${flow == null ? 'موردنیاز' : faNum(flow) + ' لیتر/ثانیه'} و هد ${faNum(total)} متر ${effTxt} کار می‌کند.`;
+  html += '<br><span style="font-size:11px;color:var(--text-muted)">این محاسبه تقریبی و بر پایهٔ ضرایب تجربی است؛ انتخاب نهایی را با منحنی عملکرد و کارشناس تأیید کنید.</span>';
+  await botMsg(withSources(catId, html));
+
+  let ids = [pump.id];
+  PUMPS.forEach(p => { if (ids.length < 3 && !ids.includes(p.id)) ids.push(p.id); });
+  showProducts(ids);
+  await followUp(catId);
+}
+
 /* ═══ Start a new conversation while keeping history ═══ */
 function startNew() {
   if (busy) return;
@@ -776,6 +926,7 @@ async function s0() {
 async function sCat(catId) {
   resetGemini();
   const cat = CATS.find(c => c.id === catId);
+  if (cat.wizard) return startWizard(catId);
   await typing();
   await botMsg(`یکی از سؤال‌های پرتکرار دستهٔ «<b>${cat.label}</b>» رو انتخاب کن، یا سؤال خودت رو بنویس:`);
   const b = makeBlock();
