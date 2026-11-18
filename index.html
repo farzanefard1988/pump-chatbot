@@ -566,8 +566,10 @@ async function showMainMenu() {
   wiz = null; resetComposerPlaceholder(); clearFollow();
   setChips([]);                         // صفحهٔ اصلی: فقط «منوی اصلی»
   const b = makeBlock();
-  CATS.forEach(c => addOpt(b, c.icon, c.label, () => { userMsg(c.label); sCat(c.id); }));
+  menuCats().forEach(c => addOpt(b, c.icon, c.label, () => { userMsg(c.label); sCat(c.id); }));
 }
+/* دسته‌هایی که در منوی اصلی نمایش داده می‌شوند (فعلاً فقط پمپ‌یاب) */
+function menuCats() { return CATS.filter(c => c.id === 'wellfinder'); }
 function getKey() { try { return localStorage.getItem('gemini_key') || ''; } catch (e) { return ''; } }
 function setKey(k) { try { localStorage.setItem('gemini_key', k); } catch (e) {} }
 
@@ -991,7 +993,7 @@ async function s0() {
   setChips([]);                         // صفحهٔ اصلی: فقط «منوی اصلی»
   await botMsg('سلام! 👋 به پشتیبانی فروش پمپ و الکتروپمپ خوش اومدی.<br>در مورد کدام موضوع راهنمایی می‌خوای؟');
   const b = makeBlock();
-  CATS.forEach(c => addOpt(b, c.icon, c.label, () => { userMsg(c.label); sCat(c.id); }));
+  menuCats().forEach(c => addOpt(b, c.icon, c.label, () => { userMsg(c.label); sCat(c.id); }));
 }
 
 /* ═══ STEP: category → popular questions ═══ */
