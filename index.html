@@ -245,6 +245,23 @@
   .typing span:nth-child(2) { animation-delay: 0.2s; }
   .typing span:nth-child(3) { animation-delay: 0.4s; }
 
+  /* ── نظرسنجی تک‌خطی زیر محصولات (به سبک کارت ایموجی) ── */
+  .survey-block { padding-right: calc(var(--avatar-size) + 8px); }
+  .survey-card {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: var(--menu-bg); border: 1px solid var(--menu-border);
+    border-radius: 14px; padding: 10px 14px;
+  }
+  .survey-label { font-size: 13px; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
+  .survey-emojis { display: flex; gap: 6px; direction: ltr; }
+  .survey-emoji {
+    border: none; background: none; font-size: 22px; line-height: 1; cursor: pointer;
+    padding: 3px; border-radius: 8px; opacity: 0.85; transition: transform 0.15s, opacity 0.15s;
+  }
+  .survey-emoji:hover { transform: scale(1.22); opacity: 1; }
+  .survey-emoji.sel { transform: scale(1.25); opacity: 1; }
+  .survey-emoji:disabled:not(.sel) { opacity: 0.35; cursor: default; }
+
   /* ── End-of-conversation feedback ── */
   .feedback-block { align-items: center; gap: 14px; margin-top: 6px; padding-right: 0 !important; }
   .feedback-divider { width: 100%; border: none; border-top: 1px solid var(--border); }
@@ -652,7 +669,7 @@ function renderGemini(txt) {
   return h;
 }
 
-const RATE_EMOJIS = ['😡','😐','🙂','😍'];
+const RATE_EMOJIS = ['😆','😊','😐','🙁','😣'];
 
 const BOT_ICON = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.4643 2.09445H12.3214V7.15804H11.4643V2.09445Z" fill="#96A1B7"/><path d="M8.30357 13.5426C9.33911 13.5426 10.1786 14.3804 10.1786 15.4139C10.1786 16.4474 9.33911 17.2852 8.30357 17.2852C7.26804 17.2852 6.42857 16.4474 6.42857 15.4139C6.42857 14.3804 7.26804 13.5426 8.30357 13.5426Z" fill="#3446E6"/><path d="M15.75 13.5426C16.7559 13.5426 17.5714 14.3804 17.5714 15.4139C17.5714 16.4474 16.7559 17.2852 15.75 17.2852C14.7441 17.2852 13.9286 16.4474 13.9286 15.4139C13.9286 14.3804 14.7441 13.5426 15.75 13.5426Z" fill="#3446E6"/><path fill-rule="evenodd" clip-rule="evenodd" d="M17.4643 6.82781C21.0739 6.82781 24 9.83411 24 13.5426V17.2852L23.9995 17.372C23.9546 21.0116 21.0913 23.9534 17.5487 23.9995L17.4643 24H6.53571L6.45128 23.9995C2.88062 23.953 0 20.9647 0 17.2852V13.5426C1.93303e-07 9.83411 2.92614 6.82781 6.53571 6.82781H17.4643ZM6.53571 9.68984C4.46465 9.68984 2.78571 11.4148 2.78571 13.5426V17.2852C2.78571 19.413 4.46465 21.138 6.53571 21.138H17.4643C19.5354 21.138 21.2143 19.413 21.2143 17.2852V13.5426C21.2143 11.4148 19.5354 9.68984 17.4643 9.68984H6.53571Z" fill="#3446E6"/><path d="M13.2159 1.30909C13.2159 2.03208 12.6478 2.61818 11.9471 2.61818C11.2464 2.61818 10.6784 2.03208 10.6784 1.30909C10.6784 0.5861 11.2464 0 11.9471 0C12.6478 0 13.2159 0.5861 13.2159 1.30909Z" fill="#3446E4"/></svg>`;
 /* همهٔ فلش‌ها به سمت چپ */
@@ -923,8 +940,7 @@ async function wizFinish() {
   const isBest = total >= pump.bMin && total <= pump.bMax;
   const effTxt = isBest ? 'در محدودهٔ <b>بهترین راندمان</b>' : 'در محدودهٔ کاری';
   html += `پیشنهاد: <b>${PRODUCTS[pump.id].name}</b> — با دبی ${flow == null ? 'موردنیاز' : faNum(flow) + ' لیتر/ثانیه'} و هد ${faNum(total)} متر ${effTxt} کار می‌کند.`;
-  html += '<br><span style="font-size:11px;color:var(--text-muted)">این محاسبه تقریبی و بر پایهٔ ضرایب تجربی است؛ انتخاب نهایی را با منحنی عملکرد و کارشناس تأیید کنید.</span>';
-  await botMsg(withSources(catId, html));
+  await botMsg(html);
 
   let ids = [pump.id];
   PUMPS.forEach(p => { if (ids.length < 3 && !ids.includes(p.id)) ids.push(p.id); });
@@ -1005,12 +1021,37 @@ async function finishClarify(catId, qIndex, optIndex) {
 }
 
 async function followUp(catId) {
+  // نظرسنجی سریع، زیر محصولات پیشنهادی
+  showSurvey();
   // اقدام‌های پایانی به‌صورت ۳ بج افقی بالای کادر ورودی
   renderFollow([
     { label: '↩️ سؤال دیگر', fn: () => sCat(catId) },
     { label: '📂 دستهٔ دیگر', fn: () => s0() },
-    { label: '✅ تمام شد', fn: () => endChat() },
+    { label: '🆕 گفت‌وگوی جدید', fn: () => startNew() },
   ]);
+}
+
+/* نظرسنجی تک‌خطی (به سبک کارت ایموجی) زیر محصولات */
+function showSurvey() {
+  const block = document.createElement('div');
+  block.className = 'opts-block survey-block';
+  const card = document.createElement('div');
+  card.className = 'survey-card';
+  card.innerHTML = '<span class="survey-label">تجربه‌ات چطور بود؟</span>' +
+    '<div class="survey-emojis">' +
+    RATE_EMOJIS.map((em, i) => `<button class="survey-emoji" type="button" aria-label="امتیاز ${i + 1}">${em}</button>`).join('') +
+    '</div>';
+  block.appendChild(card);
+  chat.appendChild(block);
+  scrollDown();
+  card.querySelectorAll('.survey-emoji').forEach(btn => {
+    btn.onclick = () => {
+      card.querySelectorAll('.survey-emoji').forEach(b => { b.classList.remove('sel'); b.disabled = true; });
+      btn.classList.add('sel');
+      const lbl = card.querySelector('.survey-label');
+      if (lbl) lbl.textContent = 'ممنون از بازخوردت 🙏';
+    };
+  });
 }
 
 /* تشخیص دستهٔ مرتبط برای پیشنهاد محصول */
