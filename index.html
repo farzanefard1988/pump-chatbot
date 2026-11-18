@@ -307,6 +307,12 @@
     font-size: 13.5px; font-weight: 600; transition: background 0.15s;
   }
   .feedback-btn-primary:hover { background: var(--primary-dark); }
+  .feedback-btn-outline {
+    flex: 1; padding: 11px; border: 1px solid var(--primary); border-radius: 10px; cursor: pointer;
+    background: var(--white); color: var(--primary); font-family: 'Vazirmatn', Tahoma, sans-serif;
+    font-size: 13.5px; font-weight: 600; transition: all 0.15s;
+  }
+  .feedback-btn-outline:hover { background: var(--primary-light); }
   .feedback-btn-dark {
     flex: 1; padding: 11px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer;
     background: var(--white); color: var(--text-secondary); font-family: 'Vazirmatn', Tahoma, sans-serif;
@@ -1057,7 +1063,7 @@ function showEndActions() {
   const row = document.createElement('div');
   row.className = 'feedback-action-row';
   const bNew = document.createElement('button');
-  bNew.className = 'feedback-btn-primary';
+  bNew.className = 'feedback-btn-outline';
   bNew.textContent = 'درخواست جدید';
   bNew.onclick = () => { if (!busy) startNew(); };
   const bClose = document.createElement('button');
