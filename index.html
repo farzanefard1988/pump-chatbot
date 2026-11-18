@@ -333,7 +333,7 @@
   <div class="chips-bar" id="followBar"></div>
   <div class="composer">
     <button class="home-btn" id="homeBtn" title="منوی اصلی">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
     </button>
     <div class="ask-field">
       <input class="ask-inp" id="askInp" placeholder="اینجا بنویس" autocomplete="off">
@@ -1045,13 +1045,9 @@ async function finishClarify(catId, qIndex, optIndex) {
 }
 
 async function followUp(catId) {
-  // نظرسنجی سریع، زیر محصولات پیشنهادی
+  // نظرسنجی سریع، زیر محصولات پیشنهادی (بدون بج‌های پایین)
+  clearFollow();
   showSurvey();
-  // اقدام‌های پایانی به‌صورت ۳ بج افقی بالای کادر ورودی
-  renderFollow([
-    { label: '↩️ سؤال دیگر', fn: () => sCat(catId) },
-    { label: '🆕 گفت‌وگوی جدید', fn: () => startNew() },
-  ]);
 }
 
 /* نظرسنجی رضایت: ۵ چهرهٔ رنگی + بازخورد شرطی زیر محصولات */
