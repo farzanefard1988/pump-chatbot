@@ -504,6 +504,7 @@ function otherCatChips(exceptId) {
 }
 async function showMainMenu() {
   resetGemini();
+  wiz = null; resetComposerPlaceholder();
   setChips([]);                         // صفحهٔ اصلی: فقط «منوی اصلی»
   const b = makeBlock();
   CATS.forEach(c => addOpt(b, c.icon, c.label, () => { userMsg(c.label); sCat(c.id); }));
@@ -727,6 +728,12 @@ function composerSend() {
   if (!v || busy) return;
   askInp.value = '';
   askSend.classList.remove('show');
+  // اگر ویزارد منتظر یک عدد است، ورودی را به ویزارد بده (نه به مدل)
+  if (wiz && wiz.awaiting) {
+    busy = true;
+    Promise.resolve(wizComposerInput(v)).finally(() => busy = false);
+    return;
+  }
   busy = true;
   // Lock the currently open menu (if any) so the flow stays consistent
   if (activeBlock) {
@@ -796,6 +803,17 @@ const WFIELDS = [
 
 let wiz = null;
 function faNum(n) { return Math.round(n).toLocaleString('fa-IR'); }
+function resetComposerPlaceholder() { askInp.placeholder = 'اینجا بنویس'; }
+/* عدد ورودی را از ارقام فارسی/عربی و متن اضافی پاک می‌کند */
+function parseInput(s) {
+  if (!s) return null;
+  const map = { '۰':'0','۱':'1','۲':'2','۳':'3','۴':'4','۵':'5','۶':'6','۷':'7','۸':'8','۹':'9',
+                '٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9','٫':'.','،':'' };
+  const norm = String(s).replace(/[۰-۹٠-٩٫،]/g, ch => (ch in map ? map[ch] : ch)).replace(/[^\d.]/g, '');
+  if (norm === '' || norm === '.') return null;
+  const n = parseFloat(norm);
+  return isNaN(n) ? null : n;
+}
 
 async function startWizard(catId) {
   resetGemini();
@@ -814,6 +832,8 @@ async function wizStep() {
   if (f.type === 'choice') wizChoice(f); else wizNumber(f);
 }
 function wizChoice(f) {
+  wiz.awaiting = null;
+  resetComposerPlaceholder();
   const b = makeBlock();
   f.options.forEach(op => addOpt(b, '', op.label, () => {
     userMsg(op.label);
@@ -821,53 +841,43 @@ function wizChoice(f) {
     wiz.i++;
     return wizStep();
   }));
-  addBack(b, s0);
+  addBack(b, () => { wiz = null; resetComposerPlaceholder(); return s0(); });
 }
+/* مرحلهٔ عددی: ورودی را از کادر پایینِ گفت‌وگو می‌گیریم (بدون باکس داخل حباب) */
 function wizNumber(f) {
+  wiz.awaiting = f;
+  askInp.placeholder = f.ph ? f.ph + ' …' : 'عدد را اینجا بنویس…';
   const b = makeBlock();
-  const wrap = document.createElement('div');
-  wrap.style.cssText = 'padding:10px;display:flex;flex-direction:column;gap:8px;';
-  const rowEl = document.createElement('div');
-  rowEl.style.cssText = 'display:flex;gap:8px;align-items:center;';
-  const inp = document.createElement('input');
-  inp.className = 'ask-inp'; inp.style.paddingLeft = '16px';
-  inp.type = 'number'; inp.inputMode = 'decimal'; inp.min = '0';
-  inp.placeholder = f.ph || 'عدد را وارد کن';
-  const btn = document.createElement('button');
-  btn.className = 'feedback-btn-primary';
-  btn.style.cssText = 'flex:0 0 auto;width:auto;padding:10px 16px;';
-  btn.textContent = 'ادامه';
-  const err = document.createElement('div');
-  err.style.cssText = 'font-size:12px;color:var(--danger);display:none;padding-right:2px;';
-  const fire = () => {
-    const raw = inp.value.trim();
-    const v = parseFloat(raw);
-    if (raw === '' || isNaN(v) || v < 0 || (v === 0 && !f.allowZero)) {
-      err.textContent = 'لطفاً یک عدد معتبر وارد کن' + (f.allowZero ? '.' : ' (بزرگ‌تر از صفر).');
-      err.style.display = 'block';
-      inp.focus();
-      return;
-    }
-    if (busy) return; busy = true;
-    userMsg(faNum(v) + (f.unit ? ' ' + f.unit : ''));
-    wiz.data[f.key] = v;
-    b.remove(); activeBlock = null; wiz.i++;
-    Promise.resolve(wizStep()).finally(() => busy = false);
-  };
-  inp.addEventListener('input', () => { err.style.display = 'none'; });
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter') fire(); });
-  btn.onclick = fire;
-  rowEl.appendChild(inp); rowEl.appendChild(btn);
-  wrap.appendChild(rowEl); wrap.appendChild(err);
-  b._list.appendChild(wrap);
   if (f.unknownOk) addOpt(b, '🤷', 'نمی‌دانم', () => {
+    wiz.awaiting = null;
+    resetComposerPlaceholder();
     userMsg('نمی‌دانم');
     wiz.data[f.key] = null;
     wiz.i++;
     return wizStep();
   });
-  addBack(b, s0);
-  setTimeout(() => inp.focus(), 100);
+  if (!b._list.children.length) b._list.remove();
+  addBack(b, () => { wiz = null; resetComposerPlaceholder(); return s0(); });
+  setTimeout(() => askInp.focus(), 150);
+}
+/* پاسخِ عددیِ کاربر که در کادر پایین تایپ شده */
+function wizComposerInput(v) {
+  const f = wiz.awaiting;
+  const n = parseInput(v);
+  if (n === null || n < 0 || (n === 0 && !f.allowZero)) {
+    userMsg(v);
+    return (async () => {
+      await typing();
+      await botMsg('لطفاً یک <b>عدد</b> معتبر وارد کن' + (f.allowZero ? '.' : ' (بزرگ‌تر از صفر).'));
+    })();
+  }
+  userMsg(faNum(n) + (f.unit ? ' ' + f.unit : ''));
+  wiz.awaiting = null;
+  wiz.data[f.key] = n;
+  wiz.i++;
+  if (activeBlock) { activeBlock.remove(); activeBlock = null; }
+  resetComposerPlaceholder();
+  return wizStep();
 }
 async function wizFinish() {
   const d = wiz.data, catId = wiz.catId;
@@ -879,6 +889,7 @@ async function wizFinish() {
   const flow   = d.flow;                       // ممکن است null باشد (نمی‌دانم)
   const pump   = selectPump(total, flow);
   wiz = null;
+  resetComposerPlaceholder();
 
   await typing();
   let html = `بر اساس اطلاعاتت، <b>ستون آب کل موردنیاز ≈ ${faNum(total)} متر</b> است:`;
@@ -903,6 +914,7 @@ async function wizFinish() {
 /* ═══ Start a new conversation while keeping history ═══ */
 function startNew() {
   if (busy) return;
+  wiz = null; resetComposerPlaceholder();
   if (activeBlock) { activeBlock.remove(); activeBlock = null; }
   if (chat.children.length) {
     const divider = document.createElement('div');
@@ -916,6 +928,7 @@ function startNew() {
 /* ═══ STEP 0: greeting + category menu ═══ */
 async function s0() {
   resetGemini();
+  wiz = null; resetComposerPlaceholder();
   setChips([]);                         // صفحهٔ اصلی: فقط «منوی اصلی»
   await botMsg('سلام! 👋 به پشتیبانی فروش پمپ و الکتروپمپ خوش اومدی.<br>در مورد کدام موضوع راهنمایی می‌خوای؟');
   const b = makeBlock();
@@ -927,6 +940,7 @@ async function sCat(catId) {
   resetGemini();
   const cat = CATS.find(c => c.id === catId);
   if (cat.wizard) return startWizard(catId);
+  wiz = null; resetComposerPlaceholder();
   await typing();
   await botMsg(`یکی از سؤال‌های پرتکرار دستهٔ «<b>${cat.label}</b>» رو انتخاب کن، یا سؤال خودت رو بنویس:`);
   const b = makeBlock();
